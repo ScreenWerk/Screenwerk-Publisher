@@ -14,6 +14,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node master.js"
   },
+  "engines": {
+    "node": "10.x"
+  },
   "dependencies": {
     "async": "^1.5.2",
     "entulib": "^1.0.0",
