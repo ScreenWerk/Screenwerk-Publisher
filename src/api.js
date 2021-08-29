@@ -28,7 +28,7 @@ app.get('/configuration/:screenEid', function (req, res) {
 app.get('/screen/:screenEid', function (req, res) {
   // console.log('Meta for screen ' + screenEid + ' requested.')
   const startAt = process.hrtime()
-  const screenEid = req.params.screenEid.replace('.json')
+  const screenEid = req.params.screenEid.replace('.json', '')
   const screenFile = path.join(__dirname, '..', 'screens', screenEid + '.json')
   if (!fs.existsSync(screenFile)) {
     console.log('Requested screen ' + screenEid + ' is not known.')
