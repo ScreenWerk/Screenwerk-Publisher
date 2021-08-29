@@ -36,12 +36,12 @@ Date.prototype.toLocalString = function() {
         ':' + pad(tzo % 60);
 }
 
-const screensDir = path.join(__dirname, 'screens')
+const screensDir = path.join(__dirname, '..', 'screens')
 if (!fs.existsSync(screensDir)) {
   fs.mkdirSync(screensDir)
 }
 
-const logDir = path.join(__dirname, 'log')
+const logDir = path.join(__dirname, '..', 'log')
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir)
 }
