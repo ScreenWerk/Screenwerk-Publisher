@@ -4,7 +4,7 @@ const path = require('path')
 
 const app = express()
 
-app.listen(process.env.NODE_ENV === 'production' ? 80 : 3000)
+app.listen(process.env.PORT)
 console.log('Start serving screen configurations.')
 
 app.get('/', function (req, res) {
