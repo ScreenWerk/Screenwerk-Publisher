@@ -439,7 +439,7 @@ function extractScreenData (screenGroups, callback) {
       },
       (err) => {
         if (err) { return callback(err) }
-        saveFile('screen/' + screenEid + '.json', JSON.stringify(configuration, null, 4), (err) => {
+        saveFile('screen/' + screenEid + '.json', configuration, (err) => {
           if (err) { return callback(err) }
           callback(null)
         })
@@ -505,7 +505,7 @@ function pollEntu () {
 
 
 
-            saveFile('screenGroups.json', JSON.stringify(screenGroups, null, 4), (err) => {
+            saveFile('screenGroups.json', screenGroups, (err) => {
               if (err) { throw new Error('Failed saving screenGroups.json') }
               logStr.write(sgEid + ' compiled at ' + (new Date().toJSON()) + '\n')
               console.log('Compiled ' + sgEid + ' at ' + (new Date()))
@@ -534,9 +534,10 @@ function pollEntu () {
 function saveFile(name, content, callback) {
   s3.upload({
     ACL: 'public-read',
+    ContentType: 'application/json',
     Bucket: process.env.SPACES_BUCKET,
     Key: name,
-    Body: content
+    Body: JSON.stringify(content)
    }, callback)
 }
 
