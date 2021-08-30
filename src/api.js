@@ -38,10 +38,12 @@ app.get('/screen/:screenEid', function (req, res) {
   })
 
   s3.headObject({ bucket: process.env.SPACES_BUCKET, key: screenFile }, function(err, metadata) {
+    console.log('API', err);
+    console.log('API', metadata);
     if (err && err.code === 'NotFound') {
       console.log('Requested screen ' + screenEid + ' is not known.')
     } else {
-      res.redirect(process.env.SPACES_URL + '/' + req.params.screenFile)
+      res.redirect(process.env.SPACES_URL + '/' + screenFile)
     }
   })
 })
