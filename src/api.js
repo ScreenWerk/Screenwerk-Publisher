@@ -29,7 +29,7 @@ app.get('/configuration/:screenEid', function (req, res) {
 app.get('/screen/:screenEid', function (req, res) {
   // console.log('Meta for screen ' + screenEid + ' requested.')
   const screenEid = req.params.screenEid.replace('.json', '')
-  const screenFile = screenEid + '.json'
+  const screenFile = 'screen/' +screenEid + '.json'
 
   const s3 = new aws.S3({
     endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),

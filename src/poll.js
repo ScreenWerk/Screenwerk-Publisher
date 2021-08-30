@@ -435,7 +435,7 @@ function extractScreenData (screenGroups, callback) {
       },
       (err) => {
         if (err) { return callback(err) }
-        saveFile(screenEid + '.json', JSON.stringify(configuration, null, 4), (err) => {
+        saveFile('screen/' + screenEid + '.json', JSON.stringify(configuration, null, 4), (err) => {
           if (err) { return callback(err) }
           callback(null)
         })
