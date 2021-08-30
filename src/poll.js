@@ -48,7 +48,7 @@ if (!fs.existsSync(logDir)) {
 const logStr = fs.createWriteStream(path.join(logDir, 'out.log'))
 
 
-var lastPollTs = new Date().getTime() - 60 * 60 * 1e3
+var lastPollTs = new Date(process.env.POLL_START_DT).getTime() - 60 * 60 * 1e3
 var connectionsInProgress = 0
 console.log(' = = = Reset ' + connectionsInProgress)
 var updateStatus = 'NO_UPDATES'
