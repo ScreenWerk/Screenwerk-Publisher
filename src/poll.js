@@ -327,13 +327,13 @@ function loadConfiguration (a_in, a_out) {
 
 function loadScreengroup (sgEid, callback) {
   connectionsInProgress++
-  // console.log(' = = = loadScreengroup ' + sgEid + ' incr ' + connectionsInProgress)
+  console.log(' = = = loadScreengroup ' + sgEid + ' incr ' + connectionsInProgress)
   entu.getEntity(sgEid, APP_ENTU_OPTIONS)
     .then(function (opEntity) {
       connectionsInProgress--
-      // console.log(' = = = loadScreengroup ' + sgEid + ' decr ' + connectionsInProgress)
+      console.log(' = = = loadScreengroup ' + sgEid + ' decr ' + connectionsInProgress)
       if (opEntity.get(['properties', 'isPublished', 0, 'value'], 'False') === 'False') {
-        // console.log('Screen group ' + sgEid + ' not published')
+        console.log('Screen group ' + sgEid + ' not published')
         return
       }
       updateStatus = 'IS_UPDATED'
@@ -355,6 +355,7 @@ function loadScreengroup (sgEid, callback) {
           })
         })
       })(sgEid)
+      console.log(opEntity);
       return opEntity
     })
     // Remove isPublished flag, if screen group was published and is loaded successfully
