@@ -2,6 +2,7 @@ const async = require('async')
 const fs = require('fs')
 const op = require('object-path')
 const path = require('path')
+const aws = require('aws-sdk')
 
 const entu = require('entulib')
 
@@ -428,7 +429,7 @@ function extractScreenData (screenGroups, callback) {
       },
       (err) => {
         if (err) { return callback(err) }
-        fs.writeFile(path.resolve(screensDir, screenEid + '.json'), JSON.stringify(configuration, null, 4), (err) => {
+        saveFile(screenEid + '.json', JSON.stringify(configuration, null, 4), (err) => {
           if (err) { return callback(err) }
           callback(null)
         })
@@ -491,7 +492,10 @@ function pollEntu () {
           updateStatus = 'NO_UPDATES'
           extractScreenData(screenGroups, (err) => {
             if (err) { console.log(err) }
-            fs.writeFile(path.join(__dirname, '..', 'screenGroups.json'), JSON.stringify(screenGroups, null, 4), (err) => {
+
+
+
+            saveFile('screenGroups.json', JSON.stringify(screenGroups, null, 4), (err) => {
               if (err) { throw new Error('Failed saving screenGroups.json') }
               logStr.write(sgEid + ' compiled at ' + (new Date().toJSON()) + '\n')
               console.log('Compiled ' + sgEid + ' at ' + (new Date()))
@@ -515,6 +519,21 @@ function pollEntu () {
       console.log(message, new Date(), reason)
       setTimeout(function () { pollEntu() }, POLLING_INTERVAL_MS * 1)
     })
+}
+
+function saveFile(name, content, callback) {
+  const s3 = new aws.S3({
+    endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),
+    accessKeyId: process.env.SPACES_KEY,
+    secretAccessKey: process.env.SPACES_SECRET
+  })
+
+  s3.upload({
+    acl: 'public-read',
+    bucket: process.env.SPACES_BUCKET,
+    key: name,
+    Body: content
+   }, callback)
 }
 
 pollEntu()
