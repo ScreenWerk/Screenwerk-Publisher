@@ -1,6 +1,7 @@
 const express = require('express')
 const fs = require('fs')
 const path = require('path')
+const aws = require('aws-sdk')
 
 const app = express()
 
@@ -29,26 +30,20 @@ app.get('/screen/:screenEid', function (req, res) {
   // console.log('Meta for screen ' + screenEid + ' requested.')
   const startAt = process.hrtime()
   const screenEid = req.params.screenEid.replace('.json', '')
-  const screenFile = path.join(__dirname, '..', 'screens', screenEid + '.json')
-  if (!fs.existsSync(screenFile)) {
-    console.log('Requested screen ' + screenEid + ' is not known.')
-    let diff = process.hrtime(startAt)
-    res.status(401)
-    res.send(JSON.stringify({
-      error: {
-        code: 401,
-        message: 'No such screen cached yet',
-        screenEid: screenEid,
-        responseTimeMs: diff[0] * 1e3 + diff[1] * 1e-6
-      }
-    }, null, 4))
-    return
-  }
 
-  let screen = JSON.parse(fs.readFileSync(screenFile))
-  screen.isoDate = new Date().toISOString()
-  // console.log('Serving meta for screen ' + screenEid + '.')
-  let diff = process.hrtime(startAt)
-  screen.responseTimeMs = diff[0] * 1e3 + diff[1] * 1e-6
-  res.send(JSON.stringify(screen, null, 2))
+  const screenFile = screenEid + '.json'
+
+  const s3 = new aws.S3({
+    endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),
+    accessKeyId: process.env.SPACES_KEY,
+    secretAccessKey: process.env.SPACES_SECRET
+  })
+
+  s3.headObject({ bucket: process.env.SPACES_BUCKET, key: screenFile }, function(err, metadata) {
+    if (err && err.code === 'NotFound') {
+      console.log('Requested screen ' + screenEid + ' is not known.')
+    } else {
+      res.redirect(process.env.SPACES_URL + '/' + req.params.screenFile)
+    }
+  })
 })
