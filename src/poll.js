@@ -54,8 +54,8 @@ console.log(' = = = Reset ' + connectionsInProgress)
 var updateStatus = 'NO_UPDATES'
 
 var screenGroups = {}
-if (fs.existsSync('screenGroups.json')) {
-  screenGroups = JSON.parse(fs.readFileSync('screenGroups.json'))
+if (fs.existsSync(path.join(__dirname, '..', 'screenGroups.json'))) {
+  screenGroups = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'screenGroups.json')))
 }
 
 function setLastPollTs (newTs) {
@@ -491,7 +491,7 @@ function pollEntu () {
           updateStatus = 'NO_UPDATES'
           extractScreenData(screenGroups, (err) => {
             if (err) { console.log(err) }
-            fs.writeFile('screenGroups.json', JSON.stringify(screenGroups, null, 4), (err) => {
+            fs.writeFile(path.join(__dirname, '..', 'screenGroups.json'), JSON.stringify(screenGroups, null, 4), (err) => {
               if (err) { throw new Error('Failed saving screenGroups.json') }
               logStr.write(sgEid + ' compiled at ' + (new Date().toJSON()) + '\n')
               console.log('Compiled ' + sgEid + ' at ' + (new Date()))
