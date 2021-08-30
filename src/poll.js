@@ -458,7 +458,7 @@ function pollEntu () {
 
   pollOptions.timestamp = (lastPollTs + 1) / 1e3
   pollOptions.definition = 'sw-screen-group'
-  pollOptions.limit = 3
+  pollOptions.limit = process.env.POLL_LIMIT || 3
 
   entu.pollUpdates(pollOptions)
     .then(function (result) {
