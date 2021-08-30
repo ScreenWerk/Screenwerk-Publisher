@@ -529,17 +529,17 @@ function pollEntu () {
 
 function saveFile(name, content, callback) {
   s3.upload({
-    acl: 'public-read',
-    bucket: process.env.SPACES_BUCKET,
-    key: name,
+    ACL: 'public-read',
+    Bucket: process.env.SPACES_BUCKET,
+    Key: name,
     Body: content
    }, callback)
 }
 
 function loadFile(name, callback) {
   s3.getObject({
-    bucket: process.env.SPACES_BUCKET,
-    key: name
+    Bucket: process.env.SPACES_BUCKET,
+    Key: name
    }, callback)
 }
 

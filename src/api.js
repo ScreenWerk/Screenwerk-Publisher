@@ -37,7 +37,7 @@ app.get('/screen/:screenEid', function (req, res) {
     secretAccessKey: process.env.SPACES_SECRET
   })
 
-  s3.headObject({ bucket: process.env.SPACES_BUCKET, key: screenFile }, function(err, metadata) {
+  s3.headObject({ Bucket: process.env.SPACES_BUCKET, Key: screenFile }, function(err, metadata) {
     console.log('API', err);
     console.log('API', metadata);
     if (err && err.code === 'NotFound') {
