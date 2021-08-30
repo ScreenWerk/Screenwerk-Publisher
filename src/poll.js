@@ -48,7 +48,7 @@ if (!fs.existsSync(logDir)) {
 const logStr = fs.createWriteStream(path.join(logDir, 'out.log'))
 
 
-var lastPollTs = new Date(process.env.POLL_START_DT).getTime() - 60 * 60 * 1e3
+var lastPollTs = new Date().getTime() - 60 * 60 * 1e3
 var connectionsInProgress = 0
 console.log(' = = = Reset ' + connectionsInProgress)
 var updateStatus = 'NO_UPDATES'
@@ -59,9 +59,9 @@ if (fs.existsSync(path.join(__dirname, '..', 'screenGroups.json'))) {
 }
 
 function setLastPollTs (newTs) {
-  // console.log('setLastPollTs. Current: ' + new Date(lastPollTs * 1e0) + ', new: ' + new Date(newTs * 1e0))
+  console.log('setLastPollTs. Current: ' + new Date(lastPollTs * 1e0) + ', new: ' + new Date(newTs * 1e0))
   if (newTs && newTs > lastPollTs) {
-    // console.log('setLastPollTs from ' + new Date(lastPollTs * 1e0) + ' to ' + new Date(newTs * 1e0))
+    console.log('setLastPollTs from ' + new Date(lastPollTs * 1e0) + ' to ' + new Date(newTs * 1e0))
     lastPollTs = newTs
   } else {
     console.log('failed to set lastPollTs to ' + newTs)
