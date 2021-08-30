@@ -62,7 +62,11 @@ loadFile('screenGroups.json', function(err, data) {
     return
   }
 
-  screenGroups = JSON.parse(data)
+  try {
+    screenGroups = JSON.parse(data)
+  } catch (error) {
+    console.log('screenGroups', data);
+  }
 })
 
 function setLastPollTs (newTs) {
