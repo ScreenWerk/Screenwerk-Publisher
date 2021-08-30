@@ -15,6 +15,12 @@ const APP_ENTU_OPTIONS = {
 const POLLING_INTERVAL_MS = 60e3
 // const POLLING_INTERVAL_MS = process.env.ENTU_POLL_SEC * 1e3 || 3e3
 
+const s3 = new aws.S3({
+  endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),
+  accessKeyId: process.env.SPACES_KEY,
+  secretAccessKey: process.env.SPACES_SECRET
+})
+
 var pollOptions = {}
 Object.keys(APP_ENTU_OPTIONS).forEach(function (key) {
   pollOptions[key] = APP_ENTU_OPTIONS[key]
@@ -37,11 +43,6 @@ Date.prototype.toLocalString = function() {
         ':' + pad(tzo % 60);
 }
 
-const screensDir = path.join(__dirname, '..', 'screens')
-if (!fs.existsSync(screensDir)) {
-  fs.mkdirSync(screensDir)
-}
-
 const logDir = path.join(__dirname, '..', 'log')
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir)
@@ -55,9 +56,14 @@ console.log(' = = = Reset ' + connectionsInProgress)
 var updateStatus = 'NO_UPDATES'
 
 var screenGroups = {}
-if (fs.existsSync(path.join(__dirname, '..', 'screenGroups.json'))) {
-  screenGroups = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'screenGroups.json')))
-}
+loadFile('screenGroups.json', function(err, data) {
+  if (err) {
+    console.error(err)
+    return
+  }
+
+  screenGroups = JSON.parse(data)
+})
 
 function setLastPollTs (newTs) {
   console.log('setLastPollTs. Current: ' + new Date(lastPollTs * 1e0) + ', new: ' + new Date(newTs * 1e0))
@@ -522,17 +528,18 @@ function pollEntu () {
 }
 
 function saveFile(name, content, callback) {
-  const s3 = new aws.S3({
-    endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),
-    accessKeyId: process.env.SPACES_KEY,
-    secretAccessKey: process.env.SPACES_SECRET
-  })
-
   s3.upload({
     acl: 'public-read',
     bucket: process.env.SPACES_BUCKET,
     key: name,
     Body: content
+   }, callback)
+}
+
+function loadFile(name, callback) {
+  s3.getObject({
+    bucket: process.env.SPACES_BUCKET,
+    key: name
    }, callback)
 }
 
