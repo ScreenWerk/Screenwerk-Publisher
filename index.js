@@ -65,7 +65,7 @@ loadFile('screenGroups.json', function(err, data) {
   }
 
   try {
-    screenGroups = JSON.parse(data)
+    screenGroups = JSON.parse(data.Body.toString('utf-8'))
   } catch (error) {
     console.log('screenGroups', data);
   }
