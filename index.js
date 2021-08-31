@@ -6,17 +6,32 @@ const aws = require('aws-sdk')
 
 const entu = require('entulib')
 
+if (!process.env.ENTU_URL) {
+  throw new Error('ENTU_URL missing in environment')
+}
 if (!process.env.ENTU_USER) {
-  throw new Error('"ENTU_USER" missing in environment')
+  throw new Error('ENTU_USER missing in environment')
 }
 if (!process.env.ENTU_KEY) {
-  throw new Error('"ENTU_KEY" missing in environment')
+  throw new Error('ENTU_KEY missing in environment')
+}
+if (!process.env.SPACES_ENDPOINT) {
+  throw new Error('SPACES_ENDPOINT missing in environment')
+}
+if (!process.env.SPACES_BUCKET) {
+  throw new Error('SPACES_BUCKET missing in environment')
+}
+if (!process.env.SPACES_KEY) {
+  throw new Error('SPACES_KEY missing in environment')
+}
+if (!process.env.SPACES_SECRET) {
+  throw new Error('SPACES_SECRET missing in environment')
 }
 
 const APP_ENTU_OPTIONS = {
-  entuUrl: process.env.ENTU_URL || 'https://piletilevi.entu.ee',
-  user: process.env.ENTU_USER || 1000,
-  key: process.env.ENTU_KEY || ''
+  entuUrl: process.env.ENTU_URL,
+  user: process.env.ENTU_USER,
+  key: process.env.ENTU_KEY
 }
 
 const POLLING_INTERVAL_MS = 60e3
