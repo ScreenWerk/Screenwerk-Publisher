@@ -6,6 +6,13 @@ const aws = require('aws-sdk')
 
 const entu = require('entulib')
 
+if (!process.env.ENTU_USER) {
+  throw new Error('"ENTU_USER" missing in environment')
+}
+if (!process.env.ENTU_KEY) {
+  throw new Error('"ENTU_KEY" missing in environment')
+}
+
 const APP_ENTU_OPTIONS = {
   entuUrl: process.env.ENTU_URL || 'https://piletilevi.entu.ee',
   user: process.env.ENTU_USER || 1000,
