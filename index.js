@@ -50,19 +50,14 @@ Date.prototype.toLocalString = function() {
         ':' + pad(tzo % 60);
 }
 
-const logDir = path.join(__dirname, '..', 'log')
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir)
-}
-const logStr = fs.createWriteStream(path.join(logDir, 'out.log'))
-
-
+const logStr = fs.createWriteStream(path.join(__dirname, 'out.log'))
 var lastPollTs = new Date().getTime() - 60 * 60 * 1e3
 var connectionsInProgress = 0
-console.log(' = = = Reset ' + connectionsInProgress)
 var updateStatus = 'NO_UPDATES'
-
 var screenGroups = {}
+
+console.log(' = = = Reset ' + connectionsInProgress)
+
 loadFile('screenGroups.json', function(err, data) {
   if (err) {
     console.error(err)
@@ -74,6 +69,8 @@ loadFile('screenGroups.json', function(err, data) {
   } catch (error) {
     console.log('screenGroups', data);
   }
+
+  pollEntu()
 })
 
 function setLastPollTs (newTs) {
@@ -554,5 +551,3 @@ function loadFile(name, callback) {
     Key: name
    }, callback)
 }
-
-pollEntu()
