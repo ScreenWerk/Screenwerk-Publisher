@@ -20,6 +20,6 @@
     "async": "^1.5.2",
     "aws-sdk": "^2.978.0",
     "entulib": "^1.0.0",
-    "object-path": "^0.11.5"
+    "object-path": "^0.11.8"
   }
 }
