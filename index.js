@@ -20,31 +20,93 @@ async function getAllData () {
   console.log(`${new Date().toISOString()} START`)
 
   const medias = await getMedias()
-  console.log(`${new Date().toISOString()} Medias: ${medias.length}`)
-
   const playlistMedias = await getPlaylistsMedias()
-  console.log(`${new Date().toISOString()} PlaylistMedias: ${playlistMedias.length}`)
-
   const playlists = await getPlaylists()
-  console.log(`${new Date().toISOString()} Playlists: ${playlists.length}`)
-
-  const layoutPlaylist = await getLayoutPlaylist()
-  console.log(`${new Date().toISOString()} LayoutPlaylist: ${layoutPlaylist.length}`)
-
+  const layoutPlaylists = await getLayoutPlaylists()
   const layouts = await getLayouts()
-  console.log(`${new Date().toISOString()} Layouts: ${layouts.length}`)
-
   const schedules = await getSchedules()
-  console.log(`${new Date().toISOString()} Schedules: ${schedules.length}`)
-
   const configurations = await getConfigurations()
-  console.log(`${new Date().toISOString()} Configurations: ${configurations.length}`)
-
   const screenGroups = await getScreenGroups()
-  console.log(`${new Date().toISOString()} ScreenGroups: ${screenGroups.length}`)
-
   const screens = await getScreens()
-  console.log(`${new Date().toISOString()} Screens: ${screens.length}`)
+
+  const files = screens.map(screen => {
+    const screenGroup = screenGroups.find(x => x._id === screen.screenGroup)
+    if (!screenGroup) return undefined
+
+    const configuration = configurations.find(x => x._id === screenGroup.configuration)
+    if (!configuration) return undefined
+
+    const schedulesForScreen = schedules.filter(x => x.configurations.includes(configuration._id))
+
+    return {
+      configurationEid: configuration._id,
+      screenGroupEid: screenGroup._id,
+      screenEid: screen._id,
+      publishedAt: screenGroup.publishedAt,
+      updateInterval: configuration.updateInterval,
+      schedules: schedulesForScreen.map(schedule => {
+        const layout = layouts.find(x => x._id === schedule.layout)
+        if (!layout) return undefined
+
+        const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
+        if (!layoutPlaylistsForSchedule.length) return undefined
+
+        return {
+          eid: schedule._id,
+          cleanup: schedule.cleanup,
+          crontab: schedule.crontab,
+          ordinal: schedule.ordinal,
+          layoutEid: layout._mid || layout._id,
+          name: layout.name,
+          layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
+            const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
+            if (!playlist) return undefined
+
+            const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
+            if (!playlistMediasForLayoutPlaylist.length) return undefined
+
+            return {
+              eid: layoutPlaylist._id,
+              name: playlist.name,
+              left: layoutPlaylist.left,
+              top: layoutPlaylist.top,
+              width: layoutPlaylist.width,
+              height: layoutPlaylist.height,
+              inPixels: layoutPlaylist.inPixels,
+              zindex: layoutPlaylist.zindex,
+              loop: layoutPlaylist.loop,
+              playlistEid: playlist._mid || playlist._id,
+              validFrom: playlist.validFrom,
+              validTo: playlist.validTo,
+              playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
+                const media = medias.find(x => x._id === playlistMedia.media)
+                if (!media) return undefined
+
+                return {
+                  playlistMediaEid: playlistMedia._id,
+                  delay: playlistMedia.delay,
+                  mute: playlistMedia.mute,
+                  ordinal: playlistMedia.ordinal,
+                  stretch: playlistMedia.stretch,
+                  mediaEid: media._id,
+                  file: `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`,
+                  fileName: media.fileName,
+                  height: media.height,
+                  width: media.width,
+                  name: media.name,
+                  type: media.type,
+                  url: media.url
+                }
+              }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
+            }
+          }).filter(x => x?.playlistMedias.length > 0)
+        }
+      }).filter(x => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
+    }
+  }).filter(x => x?.schedules.length > 0)
+
+  console.log(`${new Date().toISOString()} ${files.length} screens`)
+
   console.log(`${new Date().toISOString()} END\n\n`)
 
   setTimeout(getAllData, 30 * 1000)
@@ -86,8 +148,8 @@ async function getMedias () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
-    file: getValue(x.file, '_id'),
+    _mid: parseInt(getValue(x._mid)),
+    fileId: getValue(x.file, '_id'),
     fileName: getValue(x.file, 'filename'),
     height: getValue(x.height, 'number'),
     name: getValue(x.name),
@@ -113,7 +175,7 @@ async function getPlaylistsMedias () {
       'media.reference',
       'mute.boolean',
       'name.string',
-      // 'ordinal.number',
+      'ordinal.number',
       'stretch.boolean',
       'valid_from.datetime',
       'valid_to.datetime'
@@ -124,13 +186,15 @@ async function getPlaylistsMedias () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     animate: getValue(x.animate, 'reference'),
     delay: getValue(x.delay, 'number'),
     duration: getValue(x.duration, 'number'),
     media: getValue(x.media, 'reference'),
     mute: getValue(x.mute, 'boolean') === true,
     name: getValue(x.name),
+    ordinal: getValue(x.ordinal, 'number'),
+    playlists: x._parent.map(x => x.reference),
     stretch: getValue(x.stretch, 'boolean') === true,
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
@@ -153,7 +217,7 @@ async function getPlaylists () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     animate: getValue(x.animate, 'reference'),
     delay: getValue(x.delay, 'number'),
     name: getValue(x.name),
@@ -162,7 +226,7 @@ async function getPlaylists () {
   }))
 }
 
-async function getLayoutPlaylist () {
+async function getLayoutPlaylists () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_layout_playlist',
     '_parent._id.exists': true,
@@ -185,7 +249,7 @@ async function getLayoutPlaylist () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     height: getValue(x.height, 'number'),
     inPixels: getValue(x.in_pixels, 'boolean') === true,
     layouts: x._parent.map(x => x.reference),
@@ -213,7 +277,7 @@ async function getLayouts () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     height: getValue(x.height, 'number'),
     name: getValue(x.name),
     width: getValue(x.width, 'number')
@@ -234,7 +298,7 @@ async function getSchedules () {
       // 'duration.number',
       'layout.reference',
       'name.string',
-      // 'ordinal.number',
+      'ordinal.number',
       'valid_from.datetime',
       'valid_to.datetime'
     ].join(','),
@@ -244,12 +308,13 @@ async function getSchedules () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     configurations: x._parent.map(x => x.reference),
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
     layout: getValue(x.layout, 'reference'),
     name: getValue(x.name),
+    ordinal: getValue(x.ordinal, 'number'),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
   }))
@@ -268,7 +333,7 @@ async function getConfigurations () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     name: getValue(x.name),
     updateInterval: getValue(x.update_interval, 'number')
   }))
@@ -278,7 +343,7 @@ async function getScreenGroups () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_screen_group',
     'configuration._id.exists': true,
-    'ispublished.boolean': true,
+    // 'ispublished.boolean': true,
     props: [
       '_mid.string',
       'configuration.reference',
@@ -293,7 +358,7 @@ async function getScreenGroups () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     name: getValue(x.name),
     configuration: getValue(x.configuration, 'reference'),
     publishedAt: getValue(x.published, 'datetime')
@@ -320,7 +385,7 @@ async function getScreens () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: getValue(x._mid),
+    _mid: parseInt(getValue(x._mid)),
     name: getValue(x.name),
     publishedAt: getValue(x.published),
     screenGroup: getValue(x.screen_group, 'reference')
@@ -339,16 +404,6 @@ async function apiFetch (path, query) {
   }
 
   return response.json()
-}
-
-function getId (entity) {
-  const _id = getValue(entity._mid)
-
-  if (_id) {
-    return parseInt(_id)
-  } else {
-    return entity._id
-  }
 }
 
 function getValue (valueList = [], type = 'string', locale = 'en') {
