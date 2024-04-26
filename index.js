@@ -17,20 +17,21 @@ let TOKEN
 main()
 
 async function main () {
-  console.log(`${new Date().toISOString()} START`)
+  log('START')
 
   const files = await getAllData()
 
   for (const file of files) {
-    await uploadFile(file.key, file.json)
+    log(`Uploading ${file.key}`)
+
+    await uploadFile(`screen/${file.key}`, file.json)
 
     // if (file.oldKey) {
     //   await uploadFile(file.oldKey, file.json)
     // }
   }
 
-  console.log(`${new Date().toISOString()} ${files.length} screens published`)
-  console.log(`${new Date().toISOString()} END\n\n`)
+  log('END\n\n')
 
   setTimeout(main, 60 * 1000)
 }
@@ -39,14 +40,31 @@ async function getAllData () {
   TOKEN = await getToken()
 
   const medias = await getMedias()
+  log(`Medias: ${medias.length}`)
+
   const playlistMedias = await getPlaylistsMedias()
+  log(`PlaylistMedias: ${playlistMedias.length}`)
+
   const playlists = await getPlaylists()
+  log(`Playlists: ${playlists.length}`)
+
   const layoutPlaylists = await getLayoutPlaylists()
+  log(`LayoutPlaylists: ${layoutPlaylists.length}`)
+
   const layouts = await getLayouts()
+  log(`Layouts: ${layouts.length}`)
+
   const schedules = await getSchedules()
+  log(`Schedules: ${schedules.length}`)
+
   const configurations = await getConfigurations()
+  log(`Configurations: ${configurations.length}`)
+
   const screenGroups = await getScreenGroups()
+  log(`ScreenGroups: ${screenGroups.length}`)
+
   const screens = await getScreens()
+  log(`Screens: ${screens.length}`)
 
   const files = screens.map(screen => {
     const screenGroup = screenGroups.find(x => x._id === screen.screenGroup)
@@ -413,7 +431,7 @@ async function uploadFile (key, file) {
 
   const command = new PutObjectCommand({
     Bucket: process.env.SPACES_BUCKET,
-    Key: `screen/${key}`,
+    Key: key,
     Body: file,
     ContentType: 'application/json',
     ACL: 'public-read'
@@ -424,4 +442,8 @@ async function uploadFile (key, file) {
 
 function getValue (valueList = [], type = 'string', locale = 'en') {
   return valueList.find(x => x.language === locale)?.[type] || valueList.find(x => !x.language)?.[type] || valueList?.at(0)?.[type]
+}
+
+function log (message) {
+  console.log(new Date().toISOString().replace('T', ' ').replace('Z', ''), message)
 }
