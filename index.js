@@ -42,7 +42,7 @@ async function getAllData () {
       configurationEid: configuration._id,
       screenGroupEid: screenGroup._id,
       screenEid: screen._id,
-      publishedAt: screenGroup.publishedAt,
+      publishedAt: new Date().toISOString(),
       updateInterval: configuration.updateInterval,
       schedules: schedulesForScreen.map(schedule => {
         const layout = layouts.find(x => x._id === schedule.layout)
