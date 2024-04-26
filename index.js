@@ -183,7 +183,6 @@ async function getMedias () {
       'valid_to.datetime',
       'width.number'
     ].join(','),
-    sort: 'ordinal',
     limit: 9999
   })
 
@@ -218,7 +217,6 @@ async function getPlaylistsMedias () {
       // 'valid_from.datetime',
       'valid_to.datetime'
     ].join(','),
-    sort: 'ordinal',
     limit: 9999
   })
 
@@ -326,7 +324,6 @@ async function getSchedules () {
       'valid_from.datetime',
       'valid_to.datetime'
     ].join(','),
-    sort: 'ordinal',
     limit: 9999
   })
 
