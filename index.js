@@ -138,7 +138,7 @@ async function getMedias () {
       'name.string',
       'type.string',
       'url.string',
-      'valid_from.datetime',
+      // 'valid_from.datetime',
       'valid_to.datetime',
       'width.number'
     ].join(','),
@@ -155,7 +155,6 @@ async function getMedias () {
     name: getValue(x.name),
     type: getValue(x.type),
     url: getValue(x.url),
-    validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime'),
     width: getValue(x.width, 'number')
   }))
@@ -169,15 +168,15 @@ async function getPlaylistsMedias () {
     props: [
       '_mid.string',
       '_parent.reference',
-      'animate.reference',
+      // 'animate.reference',
       'delay.number',
       'duration.number',
       'media.reference',
       'mute.boolean',
-      'name.string',
+      // 'name.string',
       'ordinal.number',
       'stretch.boolean',
-      'valid_from.datetime',
+      // 'valid_from.datetime',
       'valid_to.datetime'
     ].join(','),
     sort: 'ordinal',
@@ -187,16 +186,13 @@ async function getPlaylistsMedias () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    animate: getValue(x.animate, 'reference'),
     delay: getValue(x.delay, 'number'),
     duration: getValue(x.duration, 'number'),
     media: getValue(x.media, 'reference'),
     mute: getValue(x.mute, 'boolean') === true,
-    name: getValue(x.name),
     ordinal: getValue(x.ordinal, 'number'),
     playlists: x._parent.map(x => x.reference),
     stretch: getValue(x.stretch, 'boolean') === true,
-    validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
   }))
 }
@@ -206,8 +202,8 @@ async function getPlaylists () {
     '_type.string': 'sw_playlist',
     props: [
       '_mid.string',
-      'animate.reference',
-      'delay.number',
+      // 'animate.reference',
+      // 'delay.number',
       'name.string',
       'valid_from.datetime',
       'valid_to.datetime'
@@ -218,8 +214,6 @@ async function getPlaylists () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    animate: getValue(x.animate, 'reference'),
-    delay: getValue(x.delay, 'number'),
     name: getValue(x.name),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
@@ -238,7 +232,7 @@ async function getLayoutPlaylists () {
       'in_pixels.boolean',
       'left.number',
       'loop.boolean',
-      'name.string',
+      // 'name.string',
       'playlist.reference',
       'top.number',
       'width.number',
@@ -255,7 +249,6 @@ async function getLayoutPlaylists () {
     layouts: x._parent.map(x => x.reference),
     left: getValue(x.left, 'number'),
     loop: getValue(x.loop, 'boolean') === true,
-    name: getValue(x.name),
     playlist: getValue(x.playlist, 'reference'),
     top: getValue(x.top, 'number'),
     width: getValue(x.width, 'number'),
@@ -297,7 +290,7 @@ async function getSchedules () {
       'crontab.string',
       // 'duration.number',
       'layout.reference',
-      'name.string',
+      // 'name.string',
       'ordinal.number',
       'valid_from.datetime',
       'valid_to.datetime'
@@ -313,7 +306,6 @@ async function getSchedules () {
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
     layout: getValue(x.layout, 'reference'),
-    name: getValue(x.name),
     ordinal: getValue(x.ordinal, 'number'),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
@@ -325,7 +317,7 @@ async function getConfigurations () {
     '_type.string': 'sw_configuration',
     props: [
       '_mid.string',
-      'name.string',
+      // 'name.string',
       'update_interval.number'
     ].join(','),
     limit: 9999
@@ -334,7 +326,6 @@ async function getConfigurations () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    name: getValue(x.name),
     updateInterval: getValue(x.update_interval, 'number')
   }))
 }
@@ -346,11 +337,11 @@ async function getScreenGroups () {
     // 'ispublished.boolean': true,
     props: [
       '_mid.string',
-      'configuration.reference',
+      'configuration.reference'
       // 'feedback.string',
       // 'ispublished.boolean',
-      'name.string',
-      'published.datetime'
+      // 'name.string',
+      // 'published.datetime'
       // 'responsible.reference'
     ].join(','),
     limit: 9999
@@ -359,9 +350,7 @@ async function getScreenGroups () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    name: getValue(x.name),
-    configuration: getValue(x.configuration, 'reference'),
-    publishedAt: getValue(x.published, 'datetime')
+    configuration: getValue(x.configuration, 'reference')
   }))
 }
 
@@ -374,10 +363,10 @@ async function getScreens () {
       // 'customer.reference',
       // 'entu_api_key.string',
       // 'log.file',
-      'name.string',
+      // 'name.string',
       // 'notes.string',
       // 'photo.file',
-      'published.string',
+      // 'published.string',
       'screen_group.reference'
     ].join(','),
     limit: 9999
@@ -386,8 +375,6 @@ async function getScreens () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    name: getValue(x.name),
-    publishedAt: getValue(x.published),
     screenGroup: getValue(x.screen_group, 'reference')
   }))
 }
