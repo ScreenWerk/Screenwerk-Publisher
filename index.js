@@ -190,11 +190,11 @@ async function getPlaylistsMedias () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    delay: getValue(x.delay, 'number'),
+    delay: getValue(x.delay, 'number') || 0,
     duration: getValue(x.duration, 'number'),
     media: getValue(x.media, 'reference'),
     mute: getValue(x.mute, 'boolean') === true,
-    ordinal: getValue(x.ordinal, 'number'),
+    ordinal: getValue(x.ordinal, 'number') || 0,
     playlists: x._parent.map(x => x.reference),
     stretch: getValue(x.stretch, 'boolean') === true,
     validTo: getValue(x.valid_to, 'datetime')
@@ -248,15 +248,15 @@ async function getLayoutPlaylists () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    height: getValue(x.height, 'number'),
+    height: getValue(x.height, 'number') || 0,
     inPixels: getValue(x.in_pixels, 'boolean') === true,
     layouts: x._parent.map(x => x.reference),
-    left: getValue(x.left, 'number'),
+    left: getValue(x.left, 'number') || 0,
     loop: getValue(x.loop, 'boolean') === true,
     playlist: getValue(x.playlist, 'reference'),
-    top: getValue(x.top, 'number'),
-    width: getValue(x.width, 'number'),
-    zindex: getValue(x.zindex, 'number')
+    top: getValue(x.top, 'number') || 0,
+    width: getValue(x.width, 'number') || 0,
+    zindex: getValue(x.zindex, 'number') || 0
   }))
 }
 
@@ -275,9 +275,9 @@ async function getLayouts () {
   return entities.map(x => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
-    height: getValue(x.height, 'number'),
+    height: getValue(x.height, 'number') || 0,
     name: getValue(x.name),
-    width: getValue(x.width, 'number')
+    width: getValue(x.width, 'number') || 0
   }))
 }
 
@@ -311,7 +311,7 @@ async function getSchedules () {
     crontab: getValue(x.crontab),
     duration: getValue(x.duration, 'number'),
     layout: getValue(x.layout, 'reference'),
-    ordinal: getValue(x.ordinal, 'number'),
+    ordinal: getValue(x.ordinal, 'number') || 0,
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
   })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
