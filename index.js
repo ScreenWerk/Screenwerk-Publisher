@@ -39,6 +39,7 @@ async function getAllData () {
     const schedulesForScreen = schedules.filter(x => x.configurations.includes(configuration._id))
 
     return {
+      _mid: screen._mid,
       configurationEid: configuration._id,
       screenGroupEid: screenGroup._id,
       screenEid: screen._id,
@@ -135,7 +136,6 @@ async function getMedias () {
     'type._id.exists': true,
     '_sharing.string': 'public',
     props: [
-      '_mid.string',
       'file._id',
       'file.filename',
       'height.number',
@@ -152,7 +152,6 @@ async function getMedias () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     fileId: getValue(x.file, '_id'),
     fileName: getValue(x.file, 'filename'),
     height: getValue(x.height, 'number'),
@@ -170,7 +169,6 @@ async function getPlaylistsMedias () {
     '_parent._id.exists': true,
     'media._id.exists': true,
     props: [
-      '_mid.string',
       '_parent.reference',
       // 'animate.reference',
       'delay.number',
@@ -189,7 +187,6 @@ async function getPlaylistsMedias () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     delay: getValue(x.delay, 'number') || 0,
     duration: getValue(x.duration, 'number'),
     media: getValue(x.media, 'reference'),
@@ -205,7 +202,6 @@ async function getPlaylists () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_playlist',
     props: [
-      '_mid.string',
       // 'animate.reference',
       // 'delay.number',
       'name.string',
@@ -217,7 +213,6 @@ async function getPlaylists () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     name: getValue(x.name),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
@@ -230,7 +225,6 @@ async function getLayoutPlaylists () {
     '_parent._id.exists': true,
     'playlist._id.exists': true,
     props: [
-      '_mid.string',
       '_parent.reference',
       'height.number',
       'in_pixels.boolean',
@@ -247,7 +241,6 @@ async function getLayoutPlaylists () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     height: getValue(x.height, 'number') || 0,
     inPixels: getValue(x.in_pixels, 'boolean') === true,
     layouts: x._parent.map(x => x.reference),
@@ -264,7 +257,6 @@ async function getLayouts () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_layout',
     props: [
-      '_mid.string',
       'height.number',
       'name.string',
       'width.number'
@@ -274,7 +266,6 @@ async function getLayouts () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     height: getValue(x.height, 'number') || 0,
     name: getValue(x.name),
     width: getValue(x.width, 'number') || 0
@@ -287,7 +278,6 @@ async function getSchedules () {
     '_parent._id.exists': true,
     'layout._id.exists': true,
     props: [
-      '_mid.string',
       '_parent.reference',
       // 'action.string',
       'cleanup.boolean',
@@ -305,7 +295,6 @@ async function getSchedules () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     configurations: x._parent.map(x => x.reference),
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
@@ -321,7 +310,6 @@ async function getConfigurations () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_configuration',
     props: [
-      '_mid.string',
       // 'name.string',
       'update_interval.number'
     ].join(','),
@@ -330,7 +318,6 @@ async function getConfigurations () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     updateInterval: getValue(x.update_interval, 'number')
   }))
 }
@@ -341,7 +328,6 @@ async function getScreenGroups () {
     'configuration._id.exists': true,
     // 'ispublished.boolean': true,
     props: [
-      '_mid.string',
       'configuration.reference'
       // 'feedback.string',
       // 'ispublished.boolean',
@@ -354,7 +340,6 @@ async function getScreenGroups () {
 
   return entities.map(x => ({
     _id: x._id,
-    _mid: parseInt(getValue(x._mid)),
     configuration: getValue(x.configuration, 'reference')
   }))
 }
