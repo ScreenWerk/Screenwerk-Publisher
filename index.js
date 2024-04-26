@@ -56,7 +56,7 @@ async function getAllData () {
           cleanup: schedule.cleanup,
           crontab: schedule.crontab,
           ordinal: schedule.ordinal,
-          layoutEid: layout._mid || layout._id,
+          layoutEid: layout._id,
           name: layout.name,
           layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
             const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
@@ -75,7 +75,7 @@ async function getAllData () {
               inPixels: layoutPlaylist.inPixels,
               zindex: layoutPlaylist.zindex,
               loop: layoutPlaylist.loop,
-              playlistEid: playlist._mid || playlist._id,
+              playlistEid: playlist._id,
               validFrom: playlist.validFrom,
               validTo: playlist.validTo,
               playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
