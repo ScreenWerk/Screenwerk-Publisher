@@ -161,7 +161,7 @@ async function getMedias () {
     url: getValue(x.url),
     validTo: getValue(x.valid_to, 'datetime'),
     width: getValue(x.width, 'number')
-  }))
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getPlaylistsMedias () {
@@ -198,7 +198,7 @@ async function getPlaylistsMedias () {
     playlists: x._parent.map(x => x.reference),
     stretch: getValue(x.stretch, 'boolean') === true,
     validTo: getValue(x.valid_to, 'datetime')
-  }))
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getPlaylists () {
@@ -221,7 +221,7 @@ async function getPlaylists () {
     name: getValue(x.name),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
-  }))
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getLayoutPlaylists () {
@@ -314,7 +314,7 @@ async function getSchedules () {
     ordinal: getValue(x.ordinal, 'number'),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
-  }))
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getConfigurations () {
