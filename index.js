@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv'
 import fetch from 'node-fetch'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 dotenv.config()
 
@@ -12,12 +13,30 @@ if (!process.env.SPACES_KEY) throw new Error('SPACES_KEY missing in environment'
 if (!process.env.SPACES_SECRET) throw new Error('SPACES_SECRET missing in environment')
 
 let TOKEN
-getAllData()
+
+main()
+
+async function main () {
+  console.log(`${new Date().toISOString()} START`)
+
+  const files = await getAllData()
+
+  for (const file of files) {
+    await uploadFile(file.key, file.json)
+
+    // if (file.oldKey) {
+    //   await uploadFile(file.oldKey, file.json)
+    // }
+  }
+
+  console.log(`${new Date().toISOString()} ${files.length} screens published`)
+  console.log(`${new Date().toISOString()} END\n\n`)
+
+  setTimeout(main, 60 * 1000)
+}
 
 async function getAllData () {
   TOKEN = await getToken()
-
-  console.log(`${new Date().toISOString()} START`)
 
   const medias = await getMedias()
   const playlistMedias = await getPlaylistsMedias()
@@ -110,11 +129,11 @@ async function getAllData () {
     }
   }).filter(x => x?.schedules.length > 0)
 
-  console.log(`${new Date().toISOString()} ${files.length} screens`)
-
-  console.log(`${new Date().toISOString()} END\n\n`)
-
-  setTimeout(getAllData, 60 * 1000)
+  return files.map(file => ({
+    key: `${file.screenEid}.json`,
+    oldKey: file._mid ? `${file._mid}.json` : undefined,
+    json: JSON.stringify(file)
+  }))
 }
 
 async function getToken () {
@@ -381,6 +400,26 @@ async function apiFetch (path, query) {
   }
 
   return response.json()
+}
+
+async function uploadFile (key, file) {
+  const spacesClient = new S3Client({
+    endpoint: process.env.SPACES_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.SPACES_KEY,
+      secretAccessKey: process.env.SPACES_SECRET
+    }
+  })
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.SPACES_BUCKET,
+    Key: `screen/${key}`,
+    Body: file,
+    ContentType: 'application/json',
+    ACL: 'public-read'
+  })
+
+  await spacesClient.send(command)
 }
 
 function getValue (valueList = [], type = 'string', locale = 'en') {
