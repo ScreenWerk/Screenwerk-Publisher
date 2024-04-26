@@ -55,9 +55,12 @@ async function getAllData () {
           eid: schedule._id,
           cleanup: schedule.cleanup,
           crontab: schedule.crontab,
+          duration: schedule.duration,
           ordinal: schedule.ordinal,
           layoutEid: layout._id,
           name: layout.name,
+          validFrom: schedule.validFrom,
+          validTo: schedule.validTo,
           layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
             const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
             if (!playlist) return undefined
@@ -84,6 +87,7 @@ async function getAllData () {
 
                 return {
                   playlistMediaEid: playlistMedia._id,
+                  duration: playlistMedia.duration,
                   delay: playlistMedia.delay,
                   mute: playlistMedia.mute,
                   ordinal: playlistMedia.ordinal,
@@ -288,7 +292,7 @@ async function getSchedules () {
       // 'action.string',
       'cleanup.boolean',
       'crontab.string',
-      // 'duration.number',
+      'duration.number',
       'layout.reference',
       // 'name.string',
       'ordinal.number',
@@ -305,6 +309,7 @@ async function getSchedules () {
     configurations: x._parent.map(x => x.reference),
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
+    duration: getValue(x.duration, 'number'),
     layout: getValue(x.layout, 'reference'),
     ordinal: getValue(x.ordinal, 'number'),
     validFrom: getValue(x.valid_from, 'datetime'),
