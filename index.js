@@ -326,7 +326,7 @@ async function getScreenGroups () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_screen_group',
     'configuration._id.exists': true,
-    // 'ispublished.boolean': true,
+    'ispublished.boolean': true,
     props: [
       'configuration.reference'
       // 'feedback.string',
