@@ -114,7 +114,7 @@ async function getAllData () {
 
   console.log(`${new Date().toISOString()} END\n\n`)
 
-  setTimeout(getAllData, 30 * 1000)
+  setTimeout(getAllData, 60 * 1000)
 }
 
 async function getToken () {
