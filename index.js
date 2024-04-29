@@ -20,6 +20,8 @@ async function main () {
   const publishedAt = new Date().toISOString()
   const screenGroups = await getAllData(publishedAt)
 
+  console.log('')
+
   for (const screenGroup of screenGroups) {
     for (const screen of screenGroup.screens) {
       console.log(`Uploading file ${screen.screenEid}.json`)
@@ -33,10 +35,12 @@ async function main () {
     // }
     }
 
-    console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n\n`)
+    console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
 
     await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
+
+  console.log('')
 
   setTimeout(main, 60 * 1000)
 }
