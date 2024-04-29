@@ -22,7 +22,7 @@ async function main () {
 
   for (const screenGroup of screenGroups) {
     for (const screen of screenGroup.screens) {
-      log(`Uploading file ${screen.screenEid}.json`)
+      console.log(`Uploading file ${screen.screenEid}.json`)
 
       const file = JSON.stringify(screen)
 
@@ -33,7 +33,7 @@ async function main () {
     // }
     }
 
-    log(`Updating screenGroup ${screenGroup.screenGroupEid}\n\n`)
+    console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n\n`)
 
     await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
@@ -45,52 +45,52 @@ async function getAllData (publishedAt) {
   TOKEN = await getToken()
 
   const screenGroups = await getScreenGroups()
-  log(`ScreenGroups: ${screenGroups.length}`)
+  console.log(`ScreenGroups: ${screenGroups.length}`)
   if (screenGroups.length === 0) return []
 
   const screens = await getScreens()
-  log(`Screens: ${screens.length}`)
+  console.log(`Screens: ${screens.length}`)
   if (screens.length === 0) return []
 
   const configurations = await getConfigurations()
-  log(`Configurations: ${configurations.length}`)
+  console.log(`Configurations: ${configurations.length}`)
   if (configurations.length === 0) return []
 
   const schedules = await getSchedules()
-  log(`Schedules: ${schedules.length}`)
+  console.log(`Schedules: ${schedules.length}`)
   if (schedules.length === 0) return []
 
   const layouts = await getLayouts()
-  log(`Layouts: ${layouts.length}`)
+  console.log(`Layouts: ${layouts.length}`)
   if (layouts.length === 0) return []
 
   const layoutPlaylists = await getLayoutPlaylists()
-  log(`LayoutPlaylists: ${layoutPlaylists.length}`)
+  console.log(`LayoutPlaylists: ${layoutPlaylists.length}`)
   if (layoutPlaylists.length === 0) return []
 
   const playlists = await getPlaylists()
-  log(`Playlists: ${playlists.length}`)
+  console.log(`Playlists: ${playlists.length}`)
   if (playlists.length === 0) return []
 
   const playlistMedias = await getPlaylistsMedias()
-  log(`PlaylistMedias: ${playlistMedias.length}`)
+  console.log(`PlaylistMedias: ${playlistMedias.length}`)
   if (playlistMedias.length === 0) return []
 
   const medias = await getMedias()
-  log(`Medias: ${medias.length}`)
+  console.log(`Medias: ${medias.length}`)
   if (medias.length === 0) return []
 
   return screenGroups.map(screenGroup => {
     const screensForScreenGroup = screens.filter(x => x.screenGroup === screenGroup._id)
 
     if (!screensForScreenGroup.length) {
-      log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
+      console.log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
 
     const configuration = configurations.find(x => x._id === screenGroup.configuration)
     if (!configuration) {
-      log(`ERROR: Configuration not found for screenGroup ${screenGroup._id}`)
+      console.log(`ERROR: Configuration not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
 
@@ -108,13 +108,13 @@ async function getAllData (publishedAt) {
         schedules: schedulesForConfiguration.map(schedule => {
           const layout = layouts.find(x => x._id === schedule.layout)
           if (!layout) {
-            log(`ERROR: Layout not found for schedule ${schedule._id}`)
+            console.log(`ERROR: Layout not found for schedule ${schedule._id}`)
             return undefined
           }
 
           const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
           if (!layoutPlaylistsForSchedule.length) {
-            log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
+            console.log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
             return undefined
           }
 
@@ -131,13 +131,13 @@ async function getAllData (publishedAt) {
             layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
               const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
               if (!playlist) {
-                log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
+                console.log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
                 return undefined
               }
 
               const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
               if (!playlistMediasForLayoutPlaylist.length) {
-                log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
+                console.log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
                 return undefined
               }
 
@@ -157,7 +157,7 @@ async function getAllData (publishedAt) {
                 playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
                   const media = medias.find(x => x._id === playlistMedia.media)
                   if (!media) {
-                    log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
+                    console.log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
                     return undefined
                   }
 
@@ -469,7 +469,7 @@ async function updateScreenGruop (screenGroup, publishedAt) {
 
   if (!response.ok) {
     const { message } = await response.json()
-    log(`ERROR: ${message}`)
+    console.log(`ERROR: ${message}`)
   }
 }
 
@@ -510,8 +510,4 @@ async function uploadFile (key, file) {
 
 function getValue (valueList = [], type = 'string', locale = 'en') {
   return valueList.find(x => x.language === locale)?.[type] || valueList.find(x => !x.language)?.[type] || valueList?.at(0)?.[type]
-}
-
-function log (message) {
-  console.log(new Date().toISOString().replace('T', ' ').replace('Z', ''), message)
 }
