@@ -40,8 +40,6 @@ async function main () {
     await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
 
-  console.log('')
-
   setTimeout(main, 60 * 1000)
 }
 
@@ -207,196 +205,6 @@ async function getToken () {
   return token
 }
 
-async function getMedias () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_media',
-    'type._id.exists': true,
-    '_sharing.string': 'public',
-    props: [
-      'file._id',
-      'file.filename',
-      'height.number',
-      'name.string',
-      'type.string',
-      'url.string',
-      'valid_from.datetime',
-      'valid_to.datetime',
-      'width.number'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    fileId: getValue(x.file, '_id'),
-    fileName: getValue(x.file, 'filename'),
-    height: getValue(x.height, 'number'),
-    name: getValue(x.name),
-    type: getValue(x.type),
-    url: getValue(x.url),
-    validFrom: getValue(x.valid_from, 'datetime'),
-    validTo: getValue(x.valid_to, 'datetime'),
-    width: getValue(x.width, 'number')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
-}
-
-async function getPlaylistsMedias () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_playlist_media',
-    '_parent._id.exists': true,
-    'media._id.exists': true,
-    props: [
-      '_parent.reference',
-      // 'animate.reference',
-      'delay.number',
-      'duration.number',
-      'media.reference',
-      'mute.boolean',
-      // 'name.string',
-      'ordinal.number',
-      'stretch.boolean',
-      // 'valid_from.datetime',
-      'valid_to.datetime'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    delay: getValue(x.delay, 'number') || 0,
-    duration: getValue(x.duration, 'number'),
-    media: getValue(x.media, 'reference'),
-    mute: getValue(x.mute, 'boolean') === true,
-    ordinal: getValue(x.ordinal, 'number') || 0,
-    playlists: x._parent.map(x => x.reference),
-    stretch: getValue(x.stretch, 'boolean') === true,
-    validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
-}
-
-async function getPlaylists () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_playlist',
-    props: [
-      // 'animate.reference',
-      // 'delay.number',
-      'name.string',
-      'valid_from.datetime',
-      'valid_to.datetime'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    name: getValue(x.name),
-    validFrom: getValue(x.valid_from, 'datetime'),
-    validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
-}
-
-async function getLayoutPlaylists () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_layout_playlist',
-    '_parent._id.exists': true,
-    'playlist._id.exists': true,
-    props: [
-      '_parent.reference',
-      'height.number',
-      'in_pixels.boolean',
-      'left.number',
-      'loop.boolean',
-      // 'name.string',
-      'playlist.reference',
-      'top.number',
-      'width.number',
-      'zindex.number'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    height: getValue(x.height, 'number') || 0,
-    inPixels: getValue(x.in_pixels, 'boolean') === true,
-    layouts: x._parent.map(x => x.reference),
-    left: getValue(x.left, 'number') || 0,
-    loop: getValue(x.loop, 'boolean') === true,
-    playlist: getValue(x.playlist, 'reference'),
-    top: getValue(x.top, 'number') || 0,
-    width: getValue(x.width, 'number') || 0,
-    zindex: getValue(x.zindex, 'number') || 0
-  }))
-}
-
-async function getLayouts () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_layout',
-    props: [
-      'height.number',
-      'name.string',
-      'width.number'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    height: getValue(x.height, 'number') || 0,
-    name: getValue(x.name),
-    width: getValue(x.width, 'number') || 0
-  }))
-}
-
-async function getSchedules () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_schedule',
-    '_parent._id.exists': true,
-    'layout._id.exists': true,
-    props: [
-      '_parent.reference',
-      // 'action.string',
-      'cleanup.boolean',
-      'crontab.string',
-      'duration.number',
-      'layout.reference',
-      // 'name.string',
-      'ordinal.number',
-      'valid_from.datetime',
-      'valid_to.datetime'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    configurations: x._parent.map(x => x.reference),
-    cleanup: getValue(x.cleanup, 'boolean') === true,
-    crontab: getValue(x.crontab),
-    duration: getValue(x.duration, 'number'),
-    layout: getValue(x.layout, 'reference'),
-    ordinal: getValue(x.ordinal, 'number') || 0,
-    validFrom: getValue(x.valid_from, 'datetime'),
-    validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
-}
-
-async function getConfigurations () {
-  const { entities } = await apiFetch('entity', {
-    '_type.string': 'sw_configuration',
-    props: [
-      // 'name.string',
-      'update_interval.number'
-    ].join(','),
-    limit: 9999
-  })
-
-  return entities.map(x => ({
-    _id: x._id,
-    updateInterval: getValue(x.update_interval, 'number')
-  }))
-}
-
 async function getScreenGroups () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_screen_group',
@@ -442,6 +250,196 @@ async function getScreens () {
     _mid: parseInt(getValue(x._mid)),
     screenGroup: getValue(x.screen_group, 'reference')
   }))
+}
+
+async function getConfigurations () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_configuration',
+    props: [
+      // 'name.string',
+      'update_interval.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    updateInterval: getValue(x.update_interval, 'number')
+  }))
+}
+
+async function getSchedules () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_schedule',
+    '_parent._id.exists': true,
+    'layout._id.exists': true,
+    props: [
+      '_parent.reference',
+      // 'action.string',
+      'cleanup.boolean',
+      'crontab.string',
+      'duration.number',
+      'layout.reference',
+      // 'name.string',
+      'ordinal.number',
+      'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    configurations: x._parent.map(x => x.reference),
+    cleanup: getValue(x.cleanup, 'boolean') === true,
+    crontab: getValue(x.crontab),
+    duration: getValue(x.duration, 'number'),
+    layout: getValue(x.layout, 'reference'),
+    ordinal: getValue(x.ordinal, 'number') || 0,
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getLayouts () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_layout',
+    props: [
+      'height.number',
+      'name.string',
+      'width.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    height: getValue(x.height, 'number') || 0,
+    name: getValue(x.name),
+    width: getValue(x.width, 'number') || 0
+  }))
+}
+
+async function getLayoutPlaylists () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_layout_playlist',
+    '_parent._id.exists': true,
+    'playlist._id.exists': true,
+    props: [
+      '_parent.reference',
+      'height.number',
+      'in_pixels.boolean',
+      'left.number',
+      'loop.boolean',
+      // 'name.string',
+      'playlist.reference',
+      'top.number',
+      'width.number',
+      'zindex.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    height: getValue(x.height, 'number') || 0,
+    inPixels: getValue(x.in_pixels, 'boolean') === true,
+    layouts: x._parent.map(x => x.reference),
+    left: getValue(x.left, 'number') || 0,
+    loop: getValue(x.loop, 'boolean') === true,
+    playlist: getValue(x.playlist, 'reference'),
+    top: getValue(x.top, 'number') || 0,
+    width: getValue(x.width, 'number') || 0,
+    zindex: getValue(x.zindex, 'number') || 0
+  }))
+}
+
+async function getPlaylists () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_playlist',
+    props: [
+      // 'animate.reference',
+      // 'delay.number',
+      'name.string',
+      'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    name: getValue(x.name),
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getPlaylistsMedias () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_playlist_media',
+    '_parent._id.exists': true,
+    'media._id.exists': true,
+    props: [
+      '_parent.reference',
+      // 'animate.reference',
+      'delay.number',
+      'duration.number',
+      'media.reference',
+      'mute.boolean',
+      // 'name.string',
+      'ordinal.number',
+      'stretch.boolean',
+      // 'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    delay: getValue(x.delay, 'number') || 0,
+    duration: getValue(x.duration, 'number'),
+    media: getValue(x.media, 'reference'),
+    mute: getValue(x.mute, 'boolean') === true,
+    ordinal: getValue(x.ordinal, 'number') || 0,
+    playlists: x._parent.map(x => x.reference),
+    stretch: getValue(x.stretch, 'boolean') === true,
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getMedias () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_media',
+    'type._id.exists': true,
+    '_sharing.string': 'public',
+    props: [
+      'file._id',
+      'file.filename',
+      'height.number',
+      'name.string',
+      'type.string',
+      'url.string',
+      'valid_from.datetime',
+      'valid_to.datetime',
+      'width.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    fileId: getValue(x.file, '_id'),
+    fileName: getValue(x.file, 'filename'),
+    height: getValue(x.height, 'number'),
+    name: getValue(x.name),
+    type: getValue(x.type),
+    url: getValue(x.url),
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime'),
+    width: getValue(x.width, 'number')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function updateScreenGruop (screenGroup, publishedAt) {
