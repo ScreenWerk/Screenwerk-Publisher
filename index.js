@@ -19,16 +19,25 @@ main()
 async function main () {
   log('START')
 
-  const files = await getAllData()
+  const publishedAt = new Date().toISOString()
+  const screenGroups = await getAllData(publishedAt)
 
-  for (const file of files) {
-    log(`Uploading ${file.key}`)
+  for (const screenGroup of Object.values(screenGroups)) {
+    for (const file of screenGroup) {
+      log(`Uploading file ${file.key}`)
 
-    await uploadFile(`screen/${file.key}`, file.json)
+      await uploadFile(`screen/${file.key}`, file.json)
 
     // if (file.oldKey) {
     //   await uploadFile(file.oldKey, file.json)
     // }
+    }
+
+    const { screenGroupEid } = screenGroup.at(0)
+
+    log(`Updating screenGroup ${screenGroupEid}`)
+
+    await updateScreenGruop(screenGroup.at(0).screenGroupEid, publishedAt)
   }
 
   log('END\n\n')
@@ -36,7 +45,7 @@ async function main () {
   setTimeout(main, 60 * 1000)
 }
 
-async function getAllData () {
+async function getAllData (publishedAt) {
   TOKEN = await getToken()
 
   const medias = await getMedias()
@@ -80,7 +89,7 @@ async function getAllData () {
       configurationEid: configuration._id,
       screenGroupEid: screenGroup._id,
       screenEid: screen._id,
-      publishedAt: new Date().toISOString(),
+      publishedAt,
       updateInterval: configuration.updateInterval,
       schedules: schedulesForScreen.map(schedule => {
         const layout = layouts.find(x => x._id === schedule.layout)
@@ -148,10 +157,18 @@ async function getAllData () {
   }).filter(x => x?.schedules.length > 0)
 
   return files.map(file => ({
+    screenGroupEid: file.screenGroupEid,
     key: `${file.screenEid}.json`,
     oldKey: file._mid ? `${file._mid}.json` : undefined,
     json: JSON.stringify(file)
-  }))
+  })).reduce((groups, file) => {
+    const key = file.screenGroupEid
+    if (!groups[key]) {
+      groups[key] = []
+    }
+    groups[key].push(file)
+    return groups
+  }, {})
 }
 
 async function getToken () {
@@ -401,6 +418,39 @@ async function getScreens () {
     _mid: parseInt(getValue(x._mid)),
     screenGroup: getValue(x.screen_group, 'reference')
   }))
+}
+
+async function updateScreenGruop (screenGroup, publishedAt) {
+  const { entity } = await apiFetch(`entity/${screenGroup}`, {
+    props: [
+      'ispublished._id',
+      'published._id'
+    ].join(',')
+  })
+
+  if (!entity) return
+
+  const isPublishedId = getValue(entity.ispublished, '_id')
+  const publishedId = getValue(entity.published, '_id')
+
+  const body = [
+    { _id: isPublishedId, type: 'ispublished', boolean: true },
+    { _id: publishedId, type: 'published', datetime: publishedAt }
+  ]
+
+  const response = await fetch(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/entity/${screenGroup}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    const { message } = await response.json()
+    log(`ERROR: ${message}`)
+  }
 }
 
 async function apiFetch (path, query) {
