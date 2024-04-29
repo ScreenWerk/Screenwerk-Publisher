@@ -17,12 +17,8 @@ let TOKEN
 main()
 
 async function main () {
-  log('START\n')
-
   const publishedAt = new Date().toISOString()
   const screenGroups = await getAllData(publishedAt)
-
-  console.log('')
 
   for (const screenGroup of screenGroups) {
     for (const screen of screenGroup.screens) {
@@ -37,12 +33,10 @@ async function main () {
     // }
     }
 
-    log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
+    log(`Updating screenGroup ${screenGroup.screenGroupEid}\n\n`)
 
     await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
-
-  log('END\n\n')
 
   setTimeout(main, 60 * 1000)
 }
