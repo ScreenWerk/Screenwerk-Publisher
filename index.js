@@ -17,27 +17,29 @@ let TOKEN
 main()
 
 async function main () {
-  log('START')
+  log('START\n')
 
   const publishedAt = new Date().toISOString()
   const screenGroups = await getAllData(publishedAt)
 
-  for (const screenGroup of Object.values(screenGroups)) {
-    for (const file of screenGroup) {
-      log(`Uploading file ${file.key}`)
+  console.log('')
 
-      await uploadFile(`screen/${file.key}`, file.json)
+  for (const screenGroup of screenGroups) {
+    for (const screen of screenGroup.screens) {
+      log(`Uploading file ${screen.screenEid}.json`)
 
-    // if (file.oldKey) {
-    //   await uploadFile(file.oldKey, file.json)
+      const file = JSON.stringify(screen)
+
+      await uploadFile(`screen/${screen.screenEid}.json`, file)
+
+    // if (screen._mid) {
+    //   await uploadFile(`screen/${screen._mid}.json`, file)
     // }
     }
 
-    const { screenGroupEid } = screenGroup.at(0)
+    log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
 
-    log(`Updating screenGroup ${screenGroupEid}`)
-
-    await updateScreenGruop(screenGroup.at(0).screenGroupEid, publishedAt)
+    await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
 
   log('END\n\n')
@@ -50,44 +52,45 @@ async function getAllData (publishedAt) {
 
   const screenGroups = await getScreenGroups()
   log(`ScreenGroups: ${screenGroups.length}`)
-  if (screenGroups.length === 0) return {}
+  if (screenGroups.length === 0) return []
 
   const screens = await getScreens()
   log(`Screens: ${screens.length}`)
-  if (screens.length === 0) return {}
+  if (screens.length === 0) return []
 
   const configurations = await getConfigurations()
   log(`Configurations: ${configurations.length}`)
-  if (configurations.length === 0) return {}
+  if (configurations.length === 0) return []
 
   const schedules = await getSchedules()
   log(`Schedules: ${schedules.length}`)
-  if (schedules.length === 0) return {}
+  if (schedules.length === 0) return []
 
   const layouts = await getLayouts()
   log(`Layouts: ${layouts.length}`)
-  if (layouts.length === 0) return {}
+  if (layouts.length === 0) return []
 
   const layoutPlaylists = await getLayoutPlaylists()
   log(`LayoutPlaylists: ${layoutPlaylists.length}`)
-  if (layoutPlaylists.length === 0) return {}
+  if (layoutPlaylists.length === 0) return []
 
   const playlists = await getPlaylists()
   log(`Playlists: ${playlists.length}`)
-  if (playlists.length === 0) return {}
+  if (playlists.length === 0) return []
 
   const playlistMedias = await getPlaylistsMedias()
   log(`PlaylistMedias: ${playlistMedias.length}`)
-  if (playlistMedias.length === 0) return {}
+  if (playlistMedias.length === 0) return []
 
   const medias = await getMedias()
   log(`Medias: ${medias.length}`)
-  if (medias.length === 0) return {}
+  if (medias.length === 0) return []
 
-  const files = screens.map(screen => {
-    const screenGroup = screenGroups.find(x => x._id === screen.screenGroup)
-    if (!screenGroup) {
-      log(`ERROR: ScreenGroup not found for screen ${screen._id}`)
+  return screenGroups.map(screenGroup => {
+    const screensForScreenGroup = screens.filter(x => x.screenGroup === screenGroup._id)
+
+    if (!screensForScreenGroup.length) {
+      log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
 
@@ -97,110 +100,100 @@ async function getAllData (publishedAt) {
       return undefined
     }
 
-    const schedulesForScreen = schedules.filter(x => x.configurations.includes(configuration._id))
+    const schedulesForConfiguration = schedules.filter(x => x.configurations.includes(configuration._id))
 
     return {
-      _mid: screen._mid,
-      configurationEid: configuration._id,
       screenGroupEid: screenGroup._id,
-      screenEid: screen._id,
-      publishedAt,
-      updateInterval: configuration.updateInterval,
-      schedules: schedulesForScreen.map(schedule => {
-        const layout = layouts.find(x => x._id === schedule.layout)
-        if (!layout) {
-          log(`ERROR: Layout not found for schedule ${schedule._id}`)
-          return undefined
-        }
+      screens: screensForScreenGroup.map(screen => ({
+        _mid: screen._mid,
+        configurationEid: configuration._id,
+        screenGroupEid: screenGroup._id,
+        screenEid: screen._id,
+        publishedAt,
+        updateInterval: configuration.updateInterval,
+        schedules: schedulesForConfiguration.map(schedule => {
+          const layout = layouts.find(x => x._id === schedule.layout)
+          if (!layout) {
+            log(`ERROR: Layout not found for schedule ${schedule._id}`)
+            return undefined
+          }
 
-        const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
-        if (!layoutPlaylistsForSchedule.length) {
-          log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
-          return undefined
-        }
+          const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
+          if (!layoutPlaylistsForSchedule.length) {
+            log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
+            return undefined
+          }
 
-        return {
-          eid: schedule._id,
-          cleanup: schedule.cleanup,
-          crontab: schedule.crontab,
-          duration: schedule.duration,
-          ordinal: schedule.ordinal,
-          layoutEid: layout._id,
-          name: layout.name,
-          validFrom: schedule.validFrom,
-          validTo: schedule.validTo,
-          layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
-            const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
-            if (!playlist) {
-              log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
-              return undefined
-            }
+          return {
+            eid: schedule._id,
+            cleanup: schedule.cleanup,
+            crontab: schedule.crontab,
+            duration: schedule.duration,
+            ordinal: schedule.ordinal,
+            layoutEid: layout._id,
+            name: layout.name,
+            validFrom: schedule.validFrom,
+            validTo: schedule.validTo,
+            layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
+              const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
+              if (!playlist) {
+                log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
+                return undefined
+              }
 
-            const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
-            if (!playlistMediasForLayoutPlaylist.length) {
-              log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
-              return undefined
-            }
+              const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
+              if (!playlistMediasForLayoutPlaylist.length) {
+                log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
+                return undefined
+              }
 
-            return {
-              eid: layoutPlaylist._id,
-              name: playlist.name,
-              left: layoutPlaylist.left,
-              top: layoutPlaylist.top,
-              width: layoutPlaylist.width,
-              height: layoutPlaylist.height,
-              inPixels: layoutPlaylist.inPixels,
-              zindex: layoutPlaylist.zindex,
-              loop: layoutPlaylist.loop,
-              playlistEid: playlist._id,
-              validFrom: playlist.validFrom,
-              validTo: playlist.validTo,
-              playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
-                const media = medias.find(x => x._id === playlistMedia.media)
-                if (!media) {
-                  log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
-                  return undefined
-                }
+              return {
+                eid: layoutPlaylist._id,
+                name: playlist.name,
+                left: layoutPlaylist.left,
+                top: layoutPlaylist.top,
+                width: layoutPlaylist.width,
+                height: layoutPlaylist.height,
+                inPixels: layoutPlaylist.inPixels,
+                zindex: layoutPlaylist.zindex,
+                loop: layoutPlaylist.loop,
+                playlistEid: playlist._id,
+                validFrom: playlist.validFrom,
+                validTo: playlist.validTo,
+                playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
+                  const media = medias.find(x => x._id === playlistMedia.media)
+                  if (!media) {
+                    log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
+                    return undefined
+                  }
 
-                return {
-                  playlistMediaEid: playlistMedia._id,
-                  duration: playlistMedia.duration,
-                  delay: playlistMedia.delay,
-                  mute: playlistMedia.mute,
-                  ordinal: playlistMedia.ordinal,
-                  stretch: playlistMedia.stretch,
-                  mediaEid: media._id,
-                  file: `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`,
-                  fileName: media.fileName,
-                  height: media.height,
-                  width: media.width,
-                  name: media.name,
-                  type: media.type,
-                  url: media.url,
-                  validFrom: media.validFrom,
-                  validTo: media.validTo
-                }
-              }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
-            }
-          }).filter(x => x?.playlistMedias.length > 0)
-        }
-      }).filter(x => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
+                  return {
+                    playlistMediaEid: playlistMedia._id,
+                    duration: playlistMedia.duration,
+                    delay: playlistMedia.delay,
+                    mute: playlistMedia.mute,
+                    ordinal: playlistMedia.ordinal,
+                    stretch: playlistMedia.stretch,
+                    mediaEid: media._id,
+                    file: `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`,
+                    fileName: media.fileName,
+                    height: media.height,
+                    width: media.width,
+                    name: media.name,
+                    type: media.type,
+                    url: media.url,
+                    validFrom: media.validFrom,
+                    validTo: media.validTo
+                  }
+                }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
+              }
+            }).filter(x => x?.playlistMedias.length > 0)
+          }
+        }).filter(x => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
+
+      })).filter(x => x?.schedules.length > 0)
     }
-  }).filter(x => x?.schedules.length > 0)
-
-  return files.map(file => ({
-    screenGroupEid: file.screenGroupEid,
-    key: `${file.screenEid}.json`,
-    oldKey: file._mid ? `${file._mid}.json` : undefined,
-    json: JSON.stringify(file)
-  })).reduce((groups, file) => {
-    const key = file.screenGroupEid
-    if (!groups[key]) {
-      groups[key] = []
-    }
-    groups[key].push(file)
-    return groups
-  }, {})
+  }).filter(x => x?.screens.length > 0)
 }
 
 async function getToken () {
