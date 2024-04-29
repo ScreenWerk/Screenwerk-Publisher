@@ -86,10 +86,16 @@ async function getAllData (publishedAt) {
 
   const files = screens.map(screen => {
     const screenGroup = screenGroups.find(x => x._id === screen.screenGroup)
-    if (!screenGroup) return undefined
+    if (!screenGroup) {
+      log(`ERROR: ScreenGroup not found for screen ${screen._id}`)
+      return undefined
+    }
 
     const configuration = configurations.find(x => x._id === screenGroup.configuration)
-    if (!configuration) return undefined
+    if (!configuration) {
+      log(`ERROR: Configuration not found for screenGroup ${screenGroup._id}`)
+      return undefined
+    }
 
     const schedulesForScreen = schedules.filter(x => x.configurations.includes(configuration._id))
 
@@ -102,10 +108,16 @@ async function getAllData (publishedAt) {
       updateInterval: configuration.updateInterval,
       schedules: schedulesForScreen.map(schedule => {
         const layout = layouts.find(x => x._id === schedule.layout)
-        if (!layout) return undefined
+        if (!layout) {
+          log(`ERROR: Layout not found for schedule ${schedule._id}`)
+          return undefined
+        }
 
         const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
-        if (!layoutPlaylistsForSchedule.length) return undefined
+        if (!layoutPlaylistsForSchedule.length) {
+          log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
+          return undefined
+        }
 
         return {
           eid: schedule._id,
@@ -119,10 +131,16 @@ async function getAllData (publishedAt) {
           validTo: schedule.validTo,
           layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
             const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
-            if (!playlist) return undefined
+            if (!playlist) {
+              log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
+              return undefined
+            }
 
             const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
-            if (!playlistMediasForLayoutPlaylist.length) return undefined
+            if (!playlistMediasForLayoutPlaylist.length) {
+              log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
+              return undefined
+            }
 
             return {
               eid: layoutPlaylist._id,
@@ -139,7 +157,10 @@ async function getAllData (publishedAt) {
               validTo: playlist.validTo,
               playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
                 const media = medias.find(x => x._id === playlistMedia.media)
-                if (!media) return undefined
+                if (!media) {
+                  log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
+                  return undefined
+                }
 
                 return {
                   playlistMediaEid: playlistMedia._id,
