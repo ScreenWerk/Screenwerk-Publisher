@@ -143,13 +143,28 @@ async function getAllData (publishedAt) {
                 return undefined
               }
 
+              let width = layout.width
+              let height = layout.height
+
+              if (layoutPlaylist.inPixels) {
+                if (width < layoutPlaylist.left + layoutPlaylist.width) {
+                  console.log(`ERROR: LayoutPlaylist ${layoutPlaylist._id} left+width (${layoutPlaylist.left}+${layoutPlaylist.width}=${layoutPlaylist.left + layoutPlaylist.width}) is outside of layout ${layout._id} width (${layout.width})`)
+                  width = layoutPlaylist.left + layoutPlaylist.width
+                }
+
+                if (height < layoutPlaylist.top + layoutPlaylist.height) {
+                  console.log(`ERROR: LayoutPlaylist ${layoutPlaylist._id} top+height (${layoutPlaylist.top}+${layoutPlaylist.height}=${layoutPlaylist.top + layoutPlaylist.height}) is outside of layout ${layout._id} height (${layout.height})`)
+                  height = layoutPlaylist.top + layoutPlaylist.height
+                }
+              }
+
               return {
                 eid: layoutPlaylist._id,
                 name: playlist.name,
                 left: layoutPlaylist.left,
                 top: layoutPlaylist.top,
-                width: layoutPlaylist.width,
-                height: layoutPlaylist.height,
+                width,
+                height,
                 inPixels: layoutPlaylist.inPixels,
                 zindex: layoutPlaylist.zindex,
                 loop: layoutPlaylist.loop,
