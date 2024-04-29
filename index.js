@@ -155,7 +155,9 @@ async function getAllData (publishedAt) {
                   width: media.width,
                   name: media.name,
                   type: media.type,
-                  url: media.url
+                  url: media.url,
+                  validFrom: media.validFrom,
+                  validTo: media.validTo
                 }
               }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
             }
@@ -205,7 +207,7 @@ async function getMedias () {
       'name.string',
       'type.string',
       'url.string',
-      // 'valid_from.datetime',
+      'valid_from.datetime',
       'valid_to.datetime',
       'width.number'
     ].join(','),
@@ -220,6 +222,7 @@ async function getMedias () {
     name: getValue(x.name),
     type: getValue(x.type),
     url: getValue(x.url),
+    validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime'),
     width: getValue(x.width, 'number')
   })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
