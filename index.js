@@ -163,6 +163,17 @@ async function getAllData (publishedAt) {
                     return undefined
                   }
 
+                  let validFrom = media.validFrom || playlistMedia.validFrom
+                  let validTo = media.validTo || playlistMedia.validTo
+
+                  if (validFrom && playlistMedia.validFrom && new Date(validFrom) < new Date(playlistMedia.validFrom)) {
+                    validFrom = playlistMedia.validFrom
+                  }
+
+                  if (validTo && playlistMedia.validTo && new Date(validTo) > new Date(playlistMedia.validTo)) {
+                    validTo = playlistMedia.validFrom
+                  }
+
                   return {
                     playlistMediaEid: playlistMedia._id,
                     duration: playlistMedia.duration,
@@ -390,7 +401,7 @@ async function getPlaylistsMedias () {
       // 'name.string',
       'ordinal.number',
       'stretch.boolean',
-      // 'valid_from.datetime',
+      'valid_from.datetime',
       'valid_to.datetime'
     ].join(','),
     limit: 9999
@@ -405,6 +416,7 @@ async function getPlaylistsMedias () {
     ordinal: getValue(x.ordinal, 'number') || 0,
     playlists: x._parent.map(x => x.reference),
     stretch: getValue(x.stretch, 'boolean') === true,
+    validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
   })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
 }
