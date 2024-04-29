@@ -48,32 +48,41 @@ async function main () {
 async function getAllData (publishedAt) {
   TOKEN = await getToken()
 
-  const medias = await getMedias()
-  log(`Medias: ${medias.length}`)
-
-  const playlistMedias = await getPlaylistsMedias()
-  log(`PlaylistMedias: ${playlistMedias.length}`)
-
-  const playlists = await getPlaylists()
-  log(`Playlists: ${playlists.length}`)
-
-  const layoutPlaylists = await getLayoutPlaylists()
-  log(`LayoutPlaylists: ${layoutPlaylists.length}`)
-
-  const layouts = await getLayouts()
-  log(`Layouts: ${layouts.length}`)
-
-  const schedules = await getSchedules()
-  log(`Schedules: ${schedules.length}`)
-
-  const configurations = await getConfigurations()
-  log(`Configurations: ${configurations.length}`)
-
   const screenGroups = await getScreenGroups()
   log(`ScreenGroups: ${screenGroups.length}`)
+  if (screenGroups.length === 0) return {}
 
   const screens = await getScreens()
   log(`Screens: ${screens.length}`)
+  if (screens.length === 0) return {}
+
+  const configurations = await getConfigurations()
+  log(`Configurations: ${configurations.length}`)
+  if (configurations.length === 0) return {}
+
+  const schedules = await getSchedules()
+  log(`Schedules: ${schedules.length}`)
+  if (schedules.length === 0) return {}
+
+  const layouts = await getLayouts()
+  log(`Layouts: ${layouts.length}`)
+  if (layouts.length === 0) return {}
+
+  const layoutPlaylists = await getLayoutPlaylists()
+  log(`LayoutPlaylists: ${layoutPlaylists.length}`)
+  if (layoutPlaylists.length === 0) return {}
+
+  const playlists = await getPlaylists()
+  log(`Playlists: ${playlists.length}`)
+  if (playlists.length === 0) return {}
+
+  const playlistMedias = await getPlaylistsMedias()
+  log(`PlaylistMedias: ${playlistMedias.length}`)
+  if (playlistMedias.length === 0) return {}
+
+  const medias = await getMedias()
+  log(`Medias: ${medias.length}`)
+  if (medias.length === 0) return {}
 
   const files = screens.map(screen => {
     const screenGroup = screenGroups.find(x => x._id === screen.screenGroup)
