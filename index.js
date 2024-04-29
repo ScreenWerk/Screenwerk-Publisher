@@ -434,7 +434,7 @@ async function updateScreenGruop (screenGroup, publishedAt) {
   const publishedId = getValue(entity.published, '_id')
 
   const body = [
-    { _id: isPublishedId, type: 'ispublished', boolean: true },
+    { _id: isPublishedId, type: 'ispublished', boolean: false },
     { _id: publishedId, type: 'published', datetime: publishedAt }
   ]
 
