@@ -419,6 +419,7 @@ async function apiFetch (path, query) {
 
 async function uploadFile (key, file) {
   const spacesClient = new S3Client({
+    region: process.env.SPACES_REGION,
     endpoint: process.env.SPACES_ENDPOINT,
     credentials: {
       accessKeyId: process.env.SPACES_KEY,
