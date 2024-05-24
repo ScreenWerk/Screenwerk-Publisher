@@ -143,8 +143,8 @@ async function getAllData (publishedAt) {
                 return undefined
               }
 
-              let width = layout.width
-              let height = layout.height
+              let width = layoutPlaylist.width
+              let height = layoutPlaylist.height
 
               if (layoutPlaylist.inPixels) {
                 if (width < layoutPlaylist.left + layoutPlaylist.width) {
