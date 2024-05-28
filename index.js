@@ -1,568 +1,542 @@
-const async = require('async')
-const fs = require('fs')
-const op = require('object-path')
-const path = require('path')
-const aws = require('aws-sdk')
+import * as dotenv from 'dotenv'
+import fetch from 'node-fetch'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
-const entu = require('entulib')
+dotenv.config()
 
-if (!process.env.ENTU_URL) {
-  throw new Error('ENTU_URL missing in environment')
-}
-if (!process.env.ENTU_USER) {
-  throw new Error('ENTU_USER missing in environment')
-}
-if (!process.env.ENTU_KEY) {
-  throw new Error('ENTU_KEY missing in environment')
-}
-if (!process.env.SPACES_ENDPOINT) {
-  throw new Error('SPACES_ENDPOINT missing in environment')
-}
-if (!process.env.SPACES_BUCKET) {
-  throw new Error('SPACES_BUCKET missing in environment')
-}
-if (!process.env.SPACES_KEY) {
-  throw new Error('SPACES_KEY missing in environment')
-}
-if (!process.env.SPACES_SECRET) {
-  throw new Error('SPACES_SECRET missing in environment')
-}
+if (!process.env.ENTU_URL) throw new Error('ENTU_URL missing in environment')
+if (!process.env.ENTU_ACCOUNT) throw new Error('ENTU_ACCOUNT missing in environment')
+if (!process.env.ENTU_KEY) throw new Error('ENTU_KEY missing in environment')
+if (!process.env.SPACES_ENDPOINT) throw new Error('SPACES_ENDPOINT missing in environment')
+if (!process.env.SPACES_BUCKET) throw new Error('SPACES_BUCKET missing in environment')
+if (!process.env.SPACES_KEY) throw new Error('SPACES_KEY missing in environment')
+if (!process.env.SPACES_SECRET) throw new Error('SPACES_SECRET missing in environment')
 
-const APP_ENTU_OPTIONS = {
-  entuUrl: process.env.ENTU_URL,
-  user: process.env.ENTU_USER,
-  key: process.env.ENTU_KEY
-}
+let TOKEN
 
-const POLLING_INTERVAL_MS = 60e3
-// const POLLING_INTERVAL_MS = process.env.ENTU_POLL_SEC * 1e3 || 3e3
+main()
 
-const s3 = new aws.S3({
-  endpoint: new aws.Endpoint(process.env.SPACES_ENDPOINT),
-  accessKeyId: process.env.SPACES_KEY,
-  secretAccessKey: process.env.SPACES_SECRET
-})
+async function main () {
+  const publishedAt = new Date().toISOString()
+  const screenGroups = await getAllData(publishedAt)
 
-var pollOptions = {}
-Object.keys(APP_ENTU_OPTIONS).forEach(function (key) {
-  pollOptions[key] = APP_ENTU_OPTIONS[key]
-})
+  console.log('')
 
-Date.prototype.toLocalString = function() {
-    var tzo = -this.getTimezoneOffset(),
-        dif = tzo >= 0 ? '+' : '-',
-        pad = function(num) {
-            var norm = Math.floor(Math.abs(num));
-            return (norm < 10 ? '0' : '') + norm;
-        };
-    return this.getFullYear() +
-        '-' + pad(this.getMonth() + 1) +
-        '-' + pad(this.getDate()) +
-        'T' + pad(this.getHours()) +
-        ':' + pad(this.getMinutes()) +
-        ':' + pad(this.getSeconds()) +
-        dif + pad(tzo / 60) +
-        ':' + pad(tzo % 60);
-}
+  for (const screenGroup of screenGroups) {
+    for (const screen of screenGroup.screens) {
+      console.log(`Uploading file ${screen.screenEid}.json`)
 
-const logStr = fs.createWriteStream(path.join(__dirname, 'out.log'))
-var lastPollTs = new Date().getTime() - 60 * 60 * 1e3
-var connectionsInProgress = 0
-var updateStatus = 'NO_UPDATES'
-var screenGroups = {}
+      const file = JSON.stringify(screen)
 
-console.log(' = = = Reset ' + connectionsInProgress)
+      await uploadFile(`screen/${screen.screenEid}.json`, file)
 
-loadFile('screenGroups.json', function(err, data) {
-  if (err) {
-    console.error(err)
-    return
+    // if (screen._mid) {
+    //   await uploadFile(`screen/${screen._mid}.json`, file)
+    // }
+    }
+
+    console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
+
+    await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
 
-  try {
-    screenGroups = JSON.parse(data.Body.toString('utf-8'))
-  } catch (error) {
-    console.log('screenGroups', data);
-  }
-
-  pollEntu()
-})
-
-function setLastPollTs (newTs) {
-  console.log('setLastPollTs. Current: ' + new Date(lastPollTs * 1e0) + ', new: ' + new Date(newTs * 1e0))
-  if (newTs && newTs > lastPollTs) {
-    console.log('setLastPollTs from ' + new Date(lastPollTs * 1e0) + ' to ' + new Date(newTs * 1e0))
-    lastPollTs = newTs
-  } else {
-    console.log('failed to set lastPollTs to ' + newTs)
-  }
+  setTimeout(main, 60 * 1000)
 }
 
-function removeScreengroup (eid) {
-  console.log('Removing screen group ' + eid)
-  op.del(screenGroups, eid)
-}
+async function getAllData (publishedAt) {
+  TOKEN = await getToken()
 
-function loadReferrals (parentEid, eDefinition, callback) {
-  connectionsInProgress++
-  // console.log(' = = = loadReferrals ' + parentEid + ' incr ' + connectionsInProgress)
-  entu.getReferrals(parentEid, eDefinition, APP_ENTU_OPTIONS)
-    .then(function (referrals) {
-      connectionsInProgress--
-      // console.log(' = = = loadReferrals ' + parentEid + ' decr ' + connectionsInProgress)
-      referrals.forEach(function (referral) {
-        callback(referral)
-      })
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadReferrals fail ' + parentEid + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
+  const screenGroups = await getScreenGroups()
+  console.log(`ScreenGroups: ${screenGroups.length}`)
+  if (screenGroups.length === 0) return []
 
-function loadChilds (parentEid, eDefinition, callback) {
-  connectionsInProgress++
-  // console.log(' = = = loadChilds ' + parentEid + ' incr ' + connectionsInProgress)
-  entu.getChilds(parentEid, eDefinition, APP_ENTU_OPTIONS)
-    .then(function (childs) {
-      connectionsInProgress--
-      // console.log(' = = = loadChilds ' + parentEid + ' decr ' + connectionsInProgress)
-      childs.forEach(function (child) {
-        callback(child)
-      })
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadChilds fail ' + parentEid + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
+  const screens = await getScreens()
+  console.log(`Screens: ${screens.length}`)
+  if (screens.length === 0) return []
 
-function loadMedia (a_in, callback) {
-  connectionsInProgress++
-  // console.log(' = = = loadMedia ' + a_in.reference + ' incr ' + connectionsInProgress)
-  entu.getEntity(a_in.reference, APP_ENTU_OPTIONS)
-    .then(function (opEntity) {
-      connectionsInProgress--
-      callback(null, opEntity)
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadMedia fail ' + a_in.reference + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
+  const configurations = await getConfigurations()
+  console.log(`Configurations: ${configurations.length}`)
+  if (configurations.length === 0) return []
 
-function buildMedia (opMedia, swMedia, callback) {
-  // console.log(' = = = File ' + JSON.stringify(opMedia.get(['properties', 'file', 0], 'No file for ' + opMedia.get(['properties', 'type', 0, 'value'], '_type_') + ' for media ' + opMedia.get('id'))))
-  let mediaEid = opMedia.get(['id'])
-  swMedia.mediaEid = mediaEid
-  swMedia.file = opMedia.get(['properties', 'file', 0, 'file'])
-  swMedia.fileName = opMedia.get(['properties', 'file', 0, 'value'])
-  swMedia.height = opMedia.get(['properties', 'height', 0, 'value'], '')
-  swMedia.width = opMedia.get(['properties', 'width', 0, 'value'], '')
-  swMedia.name = opMedia.get(['properties', 'name', 0, 'value'], '')
-  swMedia.type = opMedia.get(['properties', 'type', 0, 'value'], '')
-  swMedia.url = opMedia.get(['properties', 'url', 0, 'value'], '')
+  const schedules = await getSchedules()
+  console.log(`Schedules: ${schedules.length}`)
+  if (schedules.length === 0) return []
 
-  let validFrom = opMedia.get(['properties', 'valid-from', 0, 'value'], false)
-  if (validFrom) {
-    if (swMedia.validFrom && swMedia.validFrom < validFrom) {
-      console.log('Replacing validFrom for ' + swMedia.mediaEid + ': ' + swMedia.validFrom + ' <-- ' + validFrom)
-      swMedia.validFrom = validFrom
-    }
-  }
-  let validTo = opMedia.get(['properties', 'valid-to', 0, 'value'], false)
-  if (validTo) {
-    if (swMedia.validTo && swMedia.validTo > validTo) {
-      console.log('Replacing validTo for ' + swMedia.mediaEid + ': ' + swMedia.validTo + ' <-- ' + validTo)
-      swMedia.validTo = validTo
-    }
-  }
-  callback(null)
-}
+  const layouts = await getLayouts()
+  console.log(`Layouts: ${layouts.length}`)
+  if (layouts.length === 0) return []
 
-function validateMedia (swMedia) {
-  if (swMedia.type === 'Image') {
-    if (!swMedia.duration || swMedia.duration === 0) {
-      console.log('Noticed: Image media without duration: ' + APP_ENTU_OPTIONS.entuUrl + '/entity/sw-media' + swMedia.mediaEid)
-    }
-  }
-  if (swMedia.type !== 'URL') {
-    if (!swMedia.file || !swMedia.fileName) {
-      throw new Error('Error: Missing file for media ' + swMedia.mediaEid + '!')
-    }
-  }
-}
+  const layoutPlaylists = await getLayoutPlaylists()
+  console.log(`LayoutPlaylists: ${layoutPlaylists.length}`)
+  if (layoutPlaylists.length === 0) return []
 
-function validateLayoutPlaylist (swLayout, opLayoutPlaylist) {
-  if (opLayoutPlaylist.get(['properties', 'in-pixels', 0, 'value']) === 'True') {
-    if (!swLayout.width) {
-      console.log('Noticed: LayoutPlaylist ' + opLayoutPlaylist.get(['id']) + ' configured "in-pixels"' +
-        ', Layout should have width set. ' + APP_ENTU_OPTIONS.entuUrl + '/entity/sw-layout/' + swLayout.layoutEid)
-      swLayout.width = 0
-    }
-    if (!swLayout.height) {
-      console.log('Noticed: LayoutPlaylist ' + opLayoutPlaylist.get(['id']) + ' configured "in-pixels"' +
-        ', Layout should have height set. ' + APP_ENTU_OPTIONS.entuUrl + '/entity/sw-layout/' + swLayout.layoutEid)
-      swLayout.height = 0
-    }
-    let playlistLeft = Number(opLayoutPlaylist.get(['properties', 'left', 0, 'value'], 0))
-    let playlistWidth = Number(opLayoutPlaylist.get(['properties', 'width', 0, 'value'], 0))
-    if (swLayout.width < playlistLeft + playlistWidth) {
-      console.log('Noticed: LayoutPlaylist ' + opLayoutPlaylist.get(['id']) + ' left:' + playlistLeft + ' + width:' + playlistWidth +
-        ' = ' + (playlistLeft + playlistWidth) + ' outside ' +
-        'layout\'s width:' + swLayout.width + '. ' + APP_ENTU_OPTIONS.entuUrl + '/entity/sw-layout/' + swLayout.layoutEid)
-      swLayout.width = playlistLeft + playlistWidth
-    }
-    let playlistTop = Number(opLayoutPlaylist.get(['properties', 'top', 0, 'value'], 0))
-    let playlistHeight = Number(opLayoutPlaylist.get(['properties', 'height', 0, 'value'], 0))
-    if (swLayout.height < playlistTop + playlistHeight) {
-      console.log('Noticed: LayoutPlaylist ' + opLayoutPlaylist.get(['id']) + ' top:' + playlistTop + ' + height:' + playlistHeight +
-        ' = ' + (playlistTop + playlistHeight) + ' outside ' +
-        'layout\'s height:' + swLayout.height + '. ' + APP_ENTU_OPTIONS.entuUrl + '/entity/sw-layout/' + swLayout.layoutEid)
-      swLayout.height = playlistTop + playlistHeight
-    }
-  }
-}
+  const playlists = await getPlaylists()
+  console.log(`Playlists: ${playlists.length}`)
+  if (playlists.length === 0) return []
 
-function loadPlaylist (a_in, swPlaylist) {
-  connectionsInProgress++
-  // console.log(' = = = loadPlaylist ' + a_in.reference + ' incr ' + connectionsInProgress)
-  entu.getEntity(a_in.reference, APP_ENTU_OPTIONS)
-    .then(function (opEntity) {
-      connectionsInProgress--
-      // console.log(' = = = loadPlaylist ' + a_in.reference + ' decr ' + connectionsInProgress)
-      let playlistEid = opEntity.get(['id'])
-      swPlaylist.playlistEid = playlistEid
-      swPlaylist.name = opEntity.get(['properties', 'name', 0, 'value'], '')
-      swPlaylist.validFrom = opEntity.get(['properties', 'valid-from', 0, 'value'], '')
-      swPlaylist.validTo = opEntity.get(['properties', 'valid-to', 0, 'value'], '')
-      swPlaylist.playlistMedias = {}
-      ;(function (playlistMedias, playlistEid) {
-        loadChilds(playlistEid, 'sw-playlist-media', function (opEntity) {
-          let playlistMediaEid = opEntity.get(['id'])
-          let swMedia = {
-            playlistMediaEid: playlistMediaEid,
-            animate: opEntity.get(['properties', 'animate', 0, 'value']),
-            duration: opEntity.get(['properties', 'duration', 0, 'value']),
-            delay: Number(opEntity.get(['properties', 'delay', 0, 'value'], 0)),
-            mute: (opEntity.get(['properties', 'mute', 0, 'value']) === "True"),
-            ordinal: Number(opEntity.get(['properties', 'ordinal', 0, 'value'], 0)),
-            stretch: (opEntity.get(['properties', 'stretch', 0, 'value']) === "True"),
-            validFrom: opEntity.get(['properties', 'valid-from', 0, 'value']),
-            validTo: opEntity.get(['properties', 'valid-to', 0, 'value'])
+  const playlistMedias = await getPlaylistsMedias()
+  console.log(`PlaylistMedias: ${playlistMedias.length}`)
+  if (playlistMedias.length === 0) return []
+
+  const medias = await getMedias()
+  console.log(`Medias: ${medias.length}`)
+  if (medias.length === 0) return []
+
+  return screenGroups.map(screenGroup => {
+    const screensForScreenGroup = screens.filter(x => x.screenGroup === screenGroup._id)
+
+    if (!screensForScreenGroup.length) {
+      console.log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
+      return undefined
+    }
+
+    const configuration = configurations.find(x => x._id === screenGroup.configuration)
+    if (!configuration) {
+      console.log(`ERROR: Configuration not found for screenGroup ${screenGroup._id}`)
+      return undefined
+    }
+
+    const schedulesForConfiguration = schedules.filter(x => x.configurations.includes(configuration._id))
+
+    return {
+      screenGroupEid: screenGroup._id,
+      screens: screensForScreenGroup.map(screen => ({
+        _mid: screen._mid,
+        configurationEid: configuration._id,
+        screenGroupEid: screenGroup._id,
+        screenEid: screen._id,
+        publishedAt,
+        updateInterval: configuration.updateInterval,
+        schedules: schedulesForConfiguration.map(schedule => {
+          const layout = layouts.find(x => x._id === schedule.layout)
+          if (!layout) {
+            console.log(`ERROR: Layout not found for schedule ${schedule._id}`)
+            return undefined
           }
-          op.set(playlistMedias, [playlistMediaEid], swMedia)
-          loadMedia(opEntity.get(['properties', 'media', 0]), (err, opMedia) => {
-            if (err) { throw err }
-            buildMedia(opMedia, swMedia, (err) => {
-              if (err) { throw err }
-              validateMedia(swMedia, (err) => {
-                if (err) { throw err }
-              })
-            })
-          })
-        })
-      })(swPlaylist.playlistMedias, playlistEid)
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadPlaylist fail ' + a_in.reference + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
 
-function loadLayout (a_in, a_out) {
-  connectionsInProgress++
-  // console.log(' = = = loadLayout ' + a_in.reference + ' incr ' + connectionsInProgress)
-  entu.getEntity(a_in.reference, APP_ENTU_OPTIONS)
-    .then(function (opLayout) {
-      connectionsInProgress--
-      // console.log(' = = = loadLayout ' + a_in.reference + ' decr ' + connectionsInProgress)
-      let layoutEid = opLayout.get(['id'])
-      a_out.layoutEid = layoutEid
-      a_out.name = opLayout.get(['properties', 'name', 0, 'value'], 'Layout ' + opLayout.get(['id']) + ' has no name')
-      a_out.width = opLayout.get(['properties', 'width', 0, 'value'])
-      a_out.height = opLayout.get(['properties', 'height', 0, 'value'])
-      if (a_out.width) { a_out.width = Number(a_out.width) }
-      if (a_out.height) { a_out.height = Number(a_out.height) }
-      a_out.layoutPlaylists = {}
-      ;(function (layoutPlaylists, layoutEid) {
-        loadChilds(layoutEid, 'sw-layout-playlist', function (opLayoutPlaylist) {
-          validateLayoutPlaylist(a_out, opLayoutPlaylist)
-          let layoutPlaylistEid = opLayoutPlaylist.get(['id'])
-          op.set(layoutPlaylists, [layoutPlaylistEid], {
-            eid: layoutPlaylistEid,
-            name: opLayoutPlaylist.get(['properties', 'name', 0, 'value']),
-            left: Number(opLayoutPlaylist.get(['properties', 'left', 0, 'value'], 0)),
-            top: Number(opLayoutPlaylist.get(['properties', 'top', 0, 'value'], 0)),
-            width: Number(opLayoutPlaylist.get(['properties', 'width', 0, 'value'], 0)),
-            height: Number(opLayoutPlaylist.get(['properties', 'height', 0, 'value'], 0)),
-            inPixels: (opLayoutPlaylist.get(['properties', 'in-pixels', 0, 'value']) === "True"),
-            zindex: Number(opLayoutPlaylist.get(['properties', 'zindex', 0, 'value'], 0)),
-            loop: (opLayoutPlaylist.get(['properties', 'loop', 0, 'value']) === "True")
-          })
-          loadPlaylist(opLayoutPlaylist.get(['properties', 'playlist', 0]), op.get(layoutPlaylists, [layoutPlaylistEid]))
-        })
-      })(a_out.layoutPlaylists, layoutEid)
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadLayout fail ' + a_in.reference + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
-
-function loadConfiguration (a_in, a_out) {
-  connectionsInProgress++
-  // console.log(' = = = loadConfiguration ' + a_in.reference + ' incr ' + connectionsInProgress)
-  entu.getEntity(a_in.reference, APP_ENTU_OPTIONS)
-    .then(function (opEntity) {
-      connectionsInProgress--
-      // console.log(' = = = loadConfiguration ' + a_in.reference + ' decr ' + connectionsInProgress)
-      a_out.configurationEid = opEntity.get(['id'])
-      a_out.updateInterval = Number(opEntity.get(['properties', 'update-interval', 0, 'value'], 0))
-      a_out.schedules = {}
-
-      ;(function (schedules, cEid) {
-        loadChilds(cEid, 'sw-schedule', function (opEntity) {
-          let childEid = opEntity.get(['id'])
-          op.set(schedules, [childEid], {
-            eid: childEid,
-            cleanup: (opEntity.get(['properties', 'cleanup', 0, 'value']) === "True"),
-            crontab: opEntity.get(['properties', 'crontab', 0, 'value']),
-            duration: opEntity.get(['properties', 'duration', 0, 'value']),
-            validFrom: opEntity.get(['properties', 'valid-from', 0, 'value']),
-            validTo: opEntity.get(['properties', 'valid-to', 0, 'value']),
-            ordinal: Number(opEntity.get(['properties', 'ordinal', 0, 'value'], 0))
-          })
-          loadLayout(opEntity.get(['properties', 'layout', 0]), op.get(schedules, [childEid]))
-        })
-      })(a_out.schedules, a_out.configurationEid)
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadConfiguration fail ' + a_in.reference + ' decr ' + connectionsInProgress)
-      console.log(new Date(), reason)
-      throw (reason)
-    })
-}
-
-function loadScreengroup (sgEid, callback) {
-  connectionsInProgress++
-  // console.log(' = = = loadScreengroup ' + sgEid + ' incr ' + connectionsInProgress)
-  entu.getEntity(sgEid, APP_ENTU_OPTIONS)
-    .then(function (opEntity) {
-      connectionsInProgress--
-      // console.log(' = = = loadScreengroup ' + sgEid + ' decr ' + connectionsInProgress)
-      if (opEntity.get(['properties', 'isPublished', 0, 'value'], 'False') === 'False') {
-        console.log('Screen group ' + sgEid + ' not published')
-        return
-      }
-      updateStatus = 'IS_UPDATED'
-      op.set(screenGroups, [sgEid], {
-        eid: opEntity.get(['id']),
-        lastPoll: new Date(lastPollTs).toISOString(),
-        name: opEntity.get(['properties', 'name', 0, 'value'], ''),
-        publishedAt: new Date().toLocalString(),
-        screens: {}
-      })
-      logStr.write(sgEid + ' published at ' + screenGroups[sgEid].publishedAt + '\n')
-      loadConfiguration(opEntity.get(['properties', 'configuration', 0]), screenGroups[sgEid])
-      ;(function (sgEid) {
-        loadReferrals(sgEid, 'sw-screen', function (opEntity) {
-          op.set(screenGroups[sgEid].screens, [opEntity.get(['id'])], {
-            eid: opEntity.get(['id']),
-            name: opEntity.get(['properties', 'name', 0, 'value'], ''),
-            screenshot: opEntity.get(['properties', 'photo', 0, 'file'], '')
-          })
-        })
-      })(sgEid)
-      return opEntity
-    })
-    // Remove isPublished flag, if screen group was published and is loaded successfully
-    .then(function (opEntity) {
-      if (!opEntity) { return callback() }
-
-      let properties = {
-        entity_id: sgEid,
-        entity_definition: 'sw-screen-group',
-        dataproperty: 'isPublished',
-        property_id: opEntity.get(['properties', 'isPublished', 0, 'id']),
-        new_value: ''
-      }
-      connectionsInProgress++
-      // console.log(' = = = setScreengroup ' + sgEid + ' incr ' + connectionsInProgress)
-      entu.edit(properties, APP_ENTU_OPTIONS)
-        .then(function (result) {
-          let properties = {
-            entity_id: sgEid,
-            entity_definition: 'sw-screen-group',
-            dataproperty: 'published',
-            property_id: opEntity.get(['properties', 'published', 0, 'id']),
-            new_value: new Date().toLocalString().slice(0, 19).replace('T', ' ')
+          const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
+          if (!layoutPlaylistsForSchedule.length) {
+            console.log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
+            return undefined
           }
-          entu.edit(properties, APP_ENTU_OPTIONS)
-            .then(function (result) {
-              connectionsInProgress--
-              callback()
-            })
-            // .catch(function (reason) {
-            //   console.log(properties, new Date(), reason)
-            //   throw (reason)
-            // })
-        })
-        // .catch(function (reason) {
-        //   console.log(properties, new Date(), reason)
-        //   throw (reason)
-        // })
-    })
-    .catch(function (reason) {
-      connectionsInProgress--
-      // console.log(' = = = loadScreengroup fail' + sgEid + ' decr ' + connectionsInProgress)
-      let message = '*INFO*: loadScreengroup failed, retry in ' + POLLING_INTERVAL_MS / 1e3
-      console.log(message, new Date(), reason)
-      setTimeout(function () { loadScreengroup(sgEid, callback) }, POLLING_INTERVAL_MS * 1)
-    })
+
+          return {
+            eid: schedule._id,
+            cleanup: schedule.cleanup,
+            crontab: schedule.crontab,
+            duration: schedule.duration,
+            ordinal: schedule.ordinal,
+            layoutEid: layout._id,
+            name: layout.name,
+            validFrom: schedule.validFrom,
+            validTo: schedule.validTo,
+            layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
+              const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
+              if (!playlist) {
+                console.log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
+                return undefined
+              }
+
+              const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
+              if (!playlistMediasForLayoutPlaylist.length) {
+                console.log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
+                return undefined
+              }
+
+              let width = layoutPlaylist.width
+              let height = layoutPlaylist.height
+
+              if (layoutPlaylist.inPixels) {
+                if (width < layoutPlaylist.left + layoutPlaylist.width) {
+                  console.log(`ERROR: LayoutPlaylist ${layoutPlaylist._id} left+width (${layoutPlaylist.left}+${layoutPlaylist.width}=${layoutPlaylist.left + layoutPlaylist.width}) is outside of layout ${layout._id} width (${layout.width})`)
+                  width = layoutPlaylist.left + layoutPlaylist.width
+                }
+
+                if (height < layoutPlaylist.top + layoutPlaylist.height) {
+                  console.log(`ERROR: LayoutPlaylist ${layoutPlaylist._id} top+height (${layoutPlaylist.top}+${layoutPlaylist.height}=${layoutPlaylist.top + layoutPlaylist.height}) is outside of layout ${layout._id} height (${layout.height})`)
+                  height = layoutPlaylist.top + layoutPlaylist.height
+                }
+              }
+
+              return {
+                eid: layoutPlaylist._id,
+                name: playlist.name,
+                left: layoutPlaylist.left,
+                top: layoutPlaylist.top,
+                width,
+                height,
+                inPixels: layoutPlaylist.inPixels,
+                zindex: layoutPlaylist.zindex,
+                loop: layoutPlaylist.loop,
+                playlistEid: playlist._id,
+                validFrom: playlist.validFrom,
+                validTo: playlist.validTo,
+                playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
+                  const media = medias.find(x => x._id === playlistMedia.media)
+                  if (!media) {
+                    console.log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
+                    return undefined
+                  }
+
+                  let validFrom = media.validFrom || playlistMedia.validFrom
+                  let validTo = media.validTo || playlistMedia.validTo
+
+                  if (validFrom && playlistMedia.validFrom && new Date(validFrom) < new Date(playlistMedia.validFrom)) {
+                    validFrom = playlistMedia.validFrom
+                  }
+
+                  if (validTo && playlistMedia.validTo && new Date(validTo) > new Date(playlistMedia.validTo)) {
+                    validTo = playlistMedia.validFrom
+                  }
+
+                  return {
+                    playlistMediaEid: playlistMedia._id,
+                    duration: playlistMedia.duration,
+                    delay: playlistMedia.delay,
+                    mute: playlistMedia.mute,
+                    ordinal: playlistMedia.ordinal,
+                    stretch: playlistMedia.stretch,
+                    mediaEid: media._id,
+                    file: `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`,
+                    fileName: media.fileName,
+                    height: media.height,
+                    width: media.width,
+                    name: media.name,
+                    type: media.type,
+                    url: media.url,
+                    validFrom: media.validFrom,
+                    validTo: media.validTo
+                  }
+                }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
+              }
+            }).filter(x => x?.playlistMedias.length > 0)
+          }
+        }).filter(x => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
+
+      })).filter(x => x?.schedules.length > 0)
+    }
+  }).filter(x => x?.screens.length > 0)
 }
 
-function extractScreenData (screenGroups, callback) {
-  async.forEachOf(screenGroups, (screenGroup, screenGroupEid, callback) => {
-    async.forEachOf(screenGroup.screens, (screen, screenEid, callback) => {
-      let configuration = {}
-      configuration.configurationEid = screenGroup.configurationEid
-      configuration.screenGroupEid = Number(screenGroupEid)
-      configuration.screenEid = Number(screenEid)
-      configuration.publishedAt = screenGroup.publishedAt
-      configuration.updateInterval = screenGroup.updateInterval
-      configuration.schedules = Object.keys(screenGroup.schedules).map((key) => { return screenGroup.schedules[key] })
-      async.each(configuration.schedules, (schedule, callback) => {
-        schedule.layoutPlaylists = Object.keys(schedule.layoutPlaylists).map((key) => { return schedule.layoutPlaylists[key] })
-        async.each(schedule.layoutPlaylists, (layoutPlaylist, callback) => {
-          layoutPlaylist.playlistMedias = Object.keys(layoutPlaylist.playlistMedias)
-            .map((key) => { return layoutPlaylist.playlistMedias[key] })
-            .sort((a, b) => { return Number(a.ordinal) - Number(b.ordinal) })
-          callback(null)
-        },
-        (err) => {
-          if (err) { return callback(err) }
-          callback(null)
-        })
-      },
-      (err) => {
-        if (err) { return callback(err) }
-        saveFile('screen/' + screenEid + '.json', configuration, (err) => {
-          if (err) { return callback(err) }
-          callback(null)
-        })
-      })
-    },
-    (err) => {
-      if (err) { return callback(err) }
-      op.del(screenGroup, ['screens'])
-      op.del(screenGroup, ['schedules'])
-      callback(null)
-    })
-  },
-  (err) => {
-    if (err) { return callback(err) }
-    callback(null)
+async function getToken () {
+  const response = await fetch(`${process.env.ENTU_URL}/auth?account=${process.env.ENTU_ACCOUNT}`, { headers: { Authorization: `Bearer ${process.env.ENTU_KEY}` } })
+
+  if (!response.ok) {
+    console.error(await response.json())
+    throw new Error('Failed to fetch token')
+  }
+
+  const { token } = await response.json()
+
+  return token
+}
+
+async function getScreenGroups () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_screen_group',
+    'configuration._id.exists': true,
+    'ispublished.boolean': true,
+    props: [
+      'configuration.reference'
+      // 'feedback.string',
+      // 'ispublished.boolean',
+      // 'name.string',
+      // 'published.datetime'
+      // 'responsible.reference'
+    ].join(','),
+    limit: 9999
   })
+
+  return entities.map(x => ({
+    _id: x._id,
+    configuration: getValue(x.configuration, 'reference')
+  }))
 }
 
-function pollEntu () {
-  if (connectionsInProgress !== 0) {
-    let message = '*INFO*: pollEntu already busy (' + connectionsInProgress + '). ' +
-      'Try again in ' + POLLING_INTERVAL_MS / 1e3 + 'sec'
-    console.log(message, new Date())
-    setTimeout(function () { pollEntu() }, POLLING_INTERVAL_MS * 1)
-    return
+async function getScreens () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_screen',
+    'screen_group._id.exists': true,
+    props: [
+      '_mid.string',
+      // 'customer.reference',
+      // 'entu_api_key.string',
+      // 'log.file',
+      // 'name.string',
+      // 'notes.string',
+      // 'photo.file',
+      // 'published.string',
+      'screen_group.reference'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    _mid: parseInt(getValue(x._mid)),
+    screenGroup: getValue(x.screen_group, 'reference')
+  }))
+}
+
+async function getConfigurations () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_configuration',
+    props: [
+      // 'name.string',
+      'update_interval.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    updateInterval: getValue(x.update_interval, 'number')
+  }))
+}
+
+async function getSchedules () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_schedule',
+    '_parent._id.exists': true,
+    'layout._id.exists': true,
+    props: [
+      '_parent.reference',
+      // 'action.string',
+      'cleanup.boolean',
+      'crontab.string',
+      'duration.number',
+      'layout.reference',
+      // 'name.string',
+      'ordinal.number',
+      'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    configurations: x._parent.map(x => x.reference),
+    cleanup: getValue(x.cleanup, 'boolean') === true,
+    crontab: getValue(x.crontab),
+    duration: getValue(x.duration, 'number'),
+    layout: getValue(x.layout, 'reference'),
+    ordinal: getValue(x.ordinal, 'number') || 0,
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getLayouts () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_layout',
+    props: [
+      'height.number',
+      'name.string',
+      'width.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    height: getValue(x.height, 'number') || 0,
+    name: getValue(x.name),
+    width: getValue(x.width, 'number') || 0
+  }))
+}
+
+async function getLayoutPlaylists () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_layout_playlist',
+    '_parent._id.exists': true,
+    'playlist._id.exists': true,
+    props: [
+      '_parent.reference',
+      'height.number',
+      'in_pixels.boolean',
+      'left.number',
+      'loop.boolean',
+      // 'name.string',
+      'playlist.reference',
+      'top.number',
+      'width.number',
+      'zindex.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    height: getValue(x.height, 'number') || 0,
+    inPixels: getValue(x.in_pixels, 'boolean') === true,
+    layouts: x._parent.map(x => x.reference),
+    left: getValue(x.left, 'number') || 0,
+    loop: getValue(x.loop, 'boolean') === true,
+    playlist: getValue(x.playlist, 'reference'),
+    top: getValue(x.top, 'number') || 0,
+    width: getValue(x.width, 'number') || 0,
+    zindex: getValue(x.zindex, 'number') || 0
+  }))
+}
+
+async function getPlaylists () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_playlist',
+    props: [
+      // 'animate.reference',
+      // 'delay.number',
+      'name.string',
+      'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    name: getValue(x.name),
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getPlaylistsMedias () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_playlist_media',
+    '_parent._id.exists': true,
+    'media._id.exists': true,
+    props: [
+      '_parent.reference',
+      // 'animate.reference',
+      'delay.number',
+      'duration.number',
+      'media.reference',
+      'mute.boolean',
+      // 'name.string',
+      'ordinal.number',
+      'stretch.boolean',
+      'valid_from.datetime',
+      'valid_to.datetime'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    delay: getValue(x.delay, 'number') || 0,
+    duration: getValue(x.duration, 'number'),
+    media: getValue(x.media, 'reference'),
+    mute: getValue(x.mute, 'boolean') === true,
+    ordinal: getValue(x.ordinal, 'number') || 0,
+    playlists: x._parent.map(x => x.reference),
+    stretch: getValue(x.stretch, 'boolean') === true,
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function getMedias () {
+  const { entities } = await apiFetch('entity', {
+    '_type.string': 'sw_media',
+    'type._id.exists': true,
+    '_sharing.string': 'public',
+    props: [
+      'file._id',
+      'file.filename',
+      'height.number',
+      'name.string',
+      'type.string',
+      'url.string',
+      'valid_from.datetime',
+      'valid_to.datetime',
+      'width.number'
+    ].join(','),
+    limit: 9999
+  })
+
+  return entities.map(x => ({
+    _id: x._id,
+    fileId: getValue(x.file, '_id'),
+    fileName: getValue(x.file, 'filename'),
+    height: getValue(x.height, 'number'),
+    name: getValue(x.name),
+    type: getValue(x.type),
+    url: getValue(x.url),
+    validFrom: getValue(x.valid_from, 'datetime'),
+    validTo: getValue(x.valid_to, 'datetime'),
+    width: getValue(x.width, 'number')
+  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+}
+
+async function updateScreenGruop (screenGroup, publishedAt) {
+  const { entity } = await apiFetch(`entity/${screenGroup}`, {
+    props: [
+      'ispublished._id',
+      'published._id'
+    ].join(',')
+  })
+
+  if (!entity) return
+
+  const isPublishedId = getValue(entity.ispublished, '_id')
+  const publishedId = getValue(entity.published, '_id')
+
+  const body = [
+    { _id: isPublishedId, type: 'ispublished', boolean: false },
+    { _id: publishedId, type: 'published', datetime: publishedAt }
+  ]
+
+  const response = await fetch(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/entity/${screenGroup}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    const { message } = await response.json()
+    console.log(`ERROR: ${message}`)
+  }
+}
+
+async function apiFetch (path, query) {
+  const url = new URL(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/${path}`)
+  if (query) url.search = new URLSearchParams(query).toString()
+
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } })
+
+  if (!response.ok) {
+    console.error(await response.json())
+    throw new Error(`Failed to fetch ${path}`)
   }
 
-  pollOptions.timestamp = (lastPollTs + 1) / 1e3
-  pollOptions.definition = 'sw-screen-group'
-  pollOptions.limit = process.env.POLL_LIMIT || 3
-
-  entu.pollUpdates(pollOptions)
-    .then(function (result) {
-      let updates = result.updates.filter(function (a) { return a.action !== 'created at' })
-      updates.sort(function (a, b) { return a.timestamp - b.timestamp }) // Ascending sort by timestamp
-
-      let toGo = updates.length
-      let sgEid
-      async.eachSeries(updates, function (update, callback) {
-        if (update.timestamp > 0) { setLastPollTs(update.timestamp * 1e3) }
-        sgEid = update.id
-
-        if (update.action === 'deleted at') {
-          console.log('(' + (toGo--) + ') Removing ' + update.definition + ' ' + sgEid + ' @ ' + update.timestamp + (new Date(update.timestamp * 1e3)))
-          removeScreengroup(sgEid)
-          return callback()
-        }
-
-        console.log('(' + (toGo--) + ') Updating ' + update.definition + ' ' + sgEid + ' @ ' + update.timestamp + ' ' + (new Date(update.timestamp * 1e3)))
-        loadScreengroup(sgEid, callback)
-      }, function (err) {
-        if (err) {
-          let message = '*INFO*: Poll routine stumbled. Restart in ' + POLLING_INTERVAL_MS / 1e2
-          console.log(message, new Date(), err)
-          setTimeout(function () { pollEntu() }, POLLING_INTERVAL_MS * 10)
-          return
-        }
-        console.log('Poll routine finished', new Date())
-        if (connectionsInProgress === 0 && updateStatus === 'IS_UPDATED') {
-          updateStatus = 'NO_UPDATES'
-          extractScreenData(screenGroups, (err) => {
-            if (err) { console.log(err) }
-
-
-
-            saveFile('screenGroups.json', screenGroups, (err) => {
-              if (err) { throw new Error('Failed saving screenGroups.json') }
-              logStr.write(sgEid + ' compiled at ' + (new Date().toJSON()) + '\n')
-              console.log('Compiled ' + sgEid + ' at ' + (new Date()))
-            })
-          })
-        }
-        // TODO: Not implemented
-        // Somehow contents from entu should get sanity checked before publishing to screens.
-        // Most issues should be patched and notifications sent on the fly by validate* methods however.
-        if (connectionsInProgress === 0 && updateStatus === 'HAD_ERRORS') {
-          updateStatus = 'NO_UPDATES'
-          throw new Error('Parsing errors')
-        }
-        setTimeout(function () { pollEntu() }, POLLING_INTERVAL_MS)
-      })
-    })
-    .then(function () {
-    })
-    .catch(function (reason) {
-      let message = '*INFO*: Entu.pollUpdates failed. Restart in ' + POLLING_INTERVAL_MS / 1e3
-      console.log(message, new Date(), reason)
-      setTimeout(function () { pollEntu() }, POLLING_INTERVAL_MS * 1)
-    })
+  return response.json()
 }
 
-function saveFile(name, content, callback) {
-  s3.upload({
-    ACL: 'public-read',
+async function uploadFile (key, file) {
+  const spacesClient = new S3Client({
+    region: process.env.SPACES_REGION,
+    endpoint: process.env.SPACES_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.SPACES_KEY,
+      secretAccessKey: process.env.SPACES_SECRET
+    }
+  })
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.SPACES_BUCKET,
+    Key: key,
+    Body: file,
     ContentType: 'application/json',
-    Bucket: process.env.SPACES_BUCKET,
-    Key: name,
-    Body: JSON.stringify(content)
-   }, callback)
+    ACL: 'public-read'
+  })
+
+  await spacesClient.send(command)
 }
 
-function loadFile(name, callback) {
-  s3.getObject({
-    Bucket: process.env.SPACES_BUCKET,
-    Key: name
-   }, callback)
+function getValue (valueList = [], type = 'string', locale = 'en') {
+  return valueList.find(x => x.language === locale)?.[type] || valueList.find(x => !x.language)?.[type] || valueList?.at(0)?.[type]
 }
