@@ -30,9 +30,9 @@ async function main () {
 
       await uploadFile(`screen/${screen.screenEid}.json`, file)
 
-    // if (screen._mid) {
-    //   await uploadFile(`screen/${screen._mid}.json`, file)
-    // }
+      if (screen._mid) {
+        await uploadFile(`screen/${screen._mid}.json`, file)
+      }
     }
 
     console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
