@@ -316,7 +316,7 @@ async function getSchedules () {
 
   return entities.map(x => ({
     _id: x._id,
-    configurations: x._parent.map(x => x.reference),
+    configurations: x._parent?.map(x => x.reference) || [],
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
     duration: getValue(x.duration, 'number'),
@@ -370,7 +370,7 @@ async function getLayoutPlaylists () {
     _id: x._id,
     height: getValue(x.height, 'number') || 0,
     inPixels: getValue(x.in_pixels, 'boolean') === true,
-    layouts: x._parent.map(x => x.reference),
+    layouts: x._parent?.map(x => x.reference) || [],
     left: getValue(x.left, 'number') || 0,
     loop: getValue(x.loop, 'boolean') === true,
     playlist: getValue(x.playlist, 'reference'),
@@ -429,7 +429,7 @@ async function getPlaylistsMedias () {
     media: getValue(x.media, 'reference'),
     mute: getValue(x.mute, 'boolean') === true,
     ordinal: getValue(x.ordinal, 'number') || 0,
-    playlists: x._parent.map(x => x.reference),
+    playlists: x._parent?.map(x => x.reference) || [],
     stretch: getValue(x.stretch, 'boolean') === true,
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
