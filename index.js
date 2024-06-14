@@ -130,6 +130,8 @@ async function getAllData (publishedAt) {
             name: layout.name,
             validFrom: schedule.validFrom,
             validTo: schedule.validTo,
+            width: layout.width,
+            height: layout.height,
             layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
               const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
               if (!playlist) {
