@@ -81,6 +81,7 @@ async function getAllData (publishedAt) {
   const medias = await getMedias()
   console.log(`Medias: ${medias.length}`)
   if (medias.length === 0) return []
+  await uploadMedia(medias)
 
   return screenGroups.map((screenGroup) => {
     const screensForScreenGroup = screens.filter((x) => x.screenGroup === screenGroup._id)
@@ -456,8 +457,6 @@ async function getMedias () {
     ].join(','),
     limit: 9999
   })
-
-  await uploadMedia(entities)
 
   return entities.map((x) => ({
     _id: x._id,
