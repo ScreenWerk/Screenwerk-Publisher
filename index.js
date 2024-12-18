@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv'
 import fetch from 'node-fetch'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 
 dotenv.config()
 
@@ -28,10 +28,10 @@ async function main () {
 
       const file = JSON.stringify(screen)
 
-      await uploadFile(`screen/${screen.screenEid}.json`, file)
+      await uploadJSON(`screen/${screen.screenEid}.json`, file)
 
       if (screen._mid) {
-        await uploadFile(`screen/${screen._mid}.json`, file)
+        await uploadJSON(`screen/${screen._mid}.json`, file)
       }
     }
 
@@ -82,39 +82,39 @@ async function getAllData (publishedAt) {
   console.log(`Medias: ${medias.length}`)
   if (medias.length === 0) return []
 
-  return screenGroups.map(screenGroup => {
-    const screensForScreenGroup = screens.filter(x => x.screenGroup === screenGroup._id)
+  return screenGroups.map((screenGroup) => {
+    const screensForScreenGroup = screens.filter((x) => x.screenGroup === screenGroup._id)
 
     if (!screensForScreenGroup.length) {
       console.log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
 
-    const configuration = configurations.find(x => x._id === screenGroup.configuration)
+    const configuration = configurations.find((x) => x._id === screenGroup.configuration)
     if (!configuration) {
       console.log(`ERROR: Configuration not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
 
-    const schedulesForConfiguration = schedules.filter(x => x.configurations.includes(configuration._id))
+    const schedulesForConfiguration = schedules.filter((x) => x.configurations.includes(configuration._id))
 
     return {
       screenGroupEid: screenGroup._id,
-      screens: screensForScreenGroup.map(screen => ({
+      screens: screensForScreenGroup.map((screen) => ({
         _mid: screen._mid,
         configurationEid: configuration._id,
         screenGroupEid: screenGroup._id,
         screenEid: screen._id,
         publishedAt,
         updateInterval: configuration.updateInterval,
-        schedules: schedulesForConfiguration.map(schedule => {
-          const layout = layouts.find(x => x._id === schedule.layout)
+        schedules: schedulesForConfiguration.map((schedule) => {
+          const layout = layouts.find((x) => x._id === schedule.layout)
           if (!layout) {
             console.log(`ERROR: Layout not found for schedule ${schedule._id}`)
             return undefined
           }
 
-          const layoutPlaylistsForSchedule = layoutPlaylists.filter(x => x.layouts.includes(layout._id))
+          const layoutPlaylistsForSchedule = layoutPlaylists.filter((x) => x.layouts.includes(layout._id))
           if (!layoutPlaylistsForSchedule.length) {
             console.log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
             return undefined
@@ -132,14 +132,14 @@ async function getAllData (publishedAt) {
             validTo: schedule.validTo,
             width: layout.width,
             height: layout.height,
-            layoutPlaylists: layoutPlaylistsForSchedule.map(layoutPlaylist => {
-              const playlist = playlists.find(x => x._id === layoutPlaylist.playlist)
+            layoutPlaylists: layoutPlaylistsForSchedule.map((layoutPlaylist) => {
+              const playlist = playlists.find((x) => x._id === layoutPlaylist.playlist)
               if (!playlist) {
                 console.log(`ERROR: Playlist not found for layoutPlaylist ${layoutPlaylist._id}`)
                 return undefined
               }
 
-              const playlistMediasForLayoutPlaylist = playlistMedias.filter(x => x.playlists.includes(playlist._id))
+              const playlistMediasForLayoutPlaylist = playlistMedias.filter((x) => x.playlists.includes(playlist._id))
               if (!playlistMediasForLayoutPlaylist.length) {
                 console.log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
                 return undefined
@@ -173,8 +173,8 @@ async function getAllData (publishedAt) {
                 playlistEid: playlist._id,
                 validFrom: playlist.validFrom,
                 validTo: playlist.validTo,
-                playlistMedias: playlistMediasForLayoutPlaylist.map(playlistMedia => {
-                  const media = medias.find(x => x._id === playlistMedia.media)
+                playlistMedias: playlistMediasForLayoutPlaylist.map((playlistMedia) => {
+                  const media = medias.find((x) => x._id === playlistMedia.media)
                   if (!media) {
                     console.log(`ERROR: Media not found for playlistMedia ${playlistMedia._id}`)
                     return undefined
@@ -209,15 +209,15 @@ async function getAllData (publishedAt) {
                     validFrom: media.validFrom,
                     validTo: media.validTo
                   }
-                }).filter(x => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
+                }).filter((x) => x !== undefined).sort((a, b) => a.ordinal - b.ordinal)
               }
-            }).filter(x => x?.playlistMedias.length > 0)
+            }).filter((x) => x?.playlistMedias.length > 0)
           }
-        }).filter(x => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
+        }).filter((x) => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
 
-      })).filter(x => x?.schedules.length > 0)
+      })).filter((x) => x?.schedules.length > 0)
     }
-  }).filter(x => x?.screens.length > 0)
+  }).filter((x) => x?.screens.length > 0)
 }
 
 async function getToken () {
@@ -249,7 +249,7 @@ async function getScreenGroups () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     configuration: getValue(x.configuration, 'reference')
   }))
@@ -273,7 +273,7 @@ async function getScreens () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
     screenGroup: getValue(x.screen_group, 'reference')
@@ -290,7 +290,7 @@ async function getConfigurations () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     updateInterval: getValue(x.update_interval, 'number')
   }))
@@ -316,9 +316,9 @@ async function getSchedules () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
-    configurations: x._parent?.map(x => x.reference) || [],
+    configurations: x._parent?.map((x) => x.reference) || [],
     cleanup: getValue(x.cleanup, 'boolean') === true,
     crontab: getValue(x.crontab),
     duration: getValue(x.duration, 'number'),
@@ -326,7 +326,7 @@ async function getSchedules () {
     ordinal: getValue(x.ordinal, 'number') || 0,
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+  })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getLayouts () {
@@ -340,7 +340,7 @@ async function getLayouts () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     height: getValue(x.height, 'number') || 0,
     name: getValue(x.name),
@@ -368,11 +368,11 @@ async function getLayoutPlaylists () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     height: getValue(x.height, 'number') || 0,
     inPixels: getValue(x.in_pixels, 'boolean') === true,
-    layouts: x._parent?.map(x => x.reference) || [],
+    layouts: x._parent?.map((x) => x.reference) || [],
     left: getValue(x.left, 'number') || 0,
     loop: getValue(x.loop, 'boolean') === true,
     playlist: getValue(x.playlist, 'reference'),
@@ -395,12 +395,12 @@ async function getPlaylists () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     name: getValue(x.name),
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+  })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getPlaylistsMedias () {
@@ -424,18 +424,18 @@ async function getPlaylistsMedias () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  return entities.map((x) => ({
     _id: x._id,
     delay: getValue(x.delay, 'number') || 0,
     duration: getValue(x.duration, 'number'),
     media: getValue(x.media, 'reference'),
     mute: getValue(x.mute, 'boolean') === true,
     ordinal: getValue(x.ordinal, 'number') || 0,
-    playlists: x._parent?.map(x => x.reference) || [],
+    playlists: x._parent?.map((x) => x.reference) || [],
     stretch: getValue(x.stretch, 'boolean') === true,
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+  })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function getMedias () {
@@ -457,7 +457,9 @@ async function getMedias () {
     limit: 9999
   })
 
-  return entities.map(x => ({
+  await uploadMedia(entities)
+
+  return entities.map((x) => ({
     _id: x._id,
     fileId: getValue(x.file, '_id'),
     fileName: getValue(x.file, 'filename'),
@@ -468,7 +470,7 @@ async function getMedias () {
     validFrom: getValue(x.valid_from, 'datetime'),
     validTo: getValue(x.valid_to, 'datetime'),
     width: getValue(x.width, 'number')
-  })).filter(x => !x.validTo || new Date(x.validTo) >= new Date())
+  })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
 async function updateScreenGruop (screenGroup, publishedAt) {
@@ -518,7 +520,7 @@ async function apiFetch (path, query) {
   return response.json()
 }
 
-async function uploadFile (key, file) {
+async function uploadJSON (key, file) {
   const spacesClient = new S3Client({
     region: process.env.SPACES_REGION,
     endpoint: process.env.SPACES_ENDPOINT,
@@ -539,6 +541,61 @@ async function uploadFile (key, file) {
   await spacesClient.send(command)
 }
 
+async function uploadMedia (medias) {
+  const spacesClient = new S3Client({
+    region: process.env.SPACES_REGION,
+    endpoint: process.env.SPACES_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.SPACES_KEY,
+      secretAccessKey: process.env.SPACES_SECRET
+    }
+  })
+
+  for (const media of medias) {
+    const key = `media/${media._id}/${media.fileId}`
+
+    try {
+      const headCommand = new HeadObjectCommand({
+        Bucket: process.env.SPACES_BUCKET,
+        Key: key
+      })
+
+      await spacesClient.send(headCommand)
+
+      console.log(`File ${media._id}/${media.fileId} already exists`)
+    }
+    catch (err) {
+      if (err.name === 'NotFound') {
+        console.log(`Uploading file ${media._id}/${media.fileId}`)
+
+        const url = `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`
+        const response = await fetch(url)
+
+        if (!response.ok) {
+          console.error(`Failed to fetch file ${media._id}/${media.fileId}`)
+          continue
+        }
+
+        const command = new PutObjectCommand({
+          Bucket: process.env.SPACES_BUCKET,
+          Key: key,
+          Body: response.body,
+          ContentDisposition: `attachment;filename="${media.fileName}"`,
+          ContentType: response.headers.get('content-type') || 'application/octet-stream',
+          ACL: 'public-read'
+        })
+
+        await spacesClient.send(command)
+
+        console.log(`File ${media._id}/${media.fileId} uploaded`)
+      }
+      else {
+        console.error(`Error checking file ${media._id}/${media.fileId}:`, err)
+      }
+    }
+  }
+}
+
 function getValue (valueList = [], type = 'string', locale = 'en') {
-  return valueList.find(x => x.language === locale)?.[type] || valueList.find(x => !x.language)?.[type] || valueList?.at(0)?.[type]
+  return valueList.find((x) => x.language === locale)?.[type] || valueList.find((x) => !x.language)?.[type] || valueList?.at(0)?.[type]
 }
