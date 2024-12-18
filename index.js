@@ -553,7 +553,6 @@ async function uploadMedia (medias) {
   })
 
   for (const media of medias) {
-    console.log(media)
     if (!media.fileId) continue
 
     const key = `media/${media._id}/${media.fileId}`
@@ -565,12 +564,8 @@ async function uploadMedia (medias) {
       })
 
       await spacesClient.send(headCommand)
-
-      console.log(`File ${media._id}/${media.fileId} already exists`)
     } catch (err) {
       if (err.name === 'NotFound') {
-        console.log(`Uploading file ${media._id}/${media.fileId}`)
-
         const url = `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`
         const response = await fetch(url, { redirect: 'follow' })
 
