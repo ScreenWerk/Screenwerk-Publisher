@@ -128,7 +128,7 @@ async function getAllData (publishedAt) {
             ordinal: schedule.ordinal,
             layoutEid: layout._id,
             name: layout.name,
-            validFrom: schedule.validFrom,module_H
+            validFrom: schedule.validFrom,
             validTo: schedule.validTo,
             width: layout.width,
             height: layout.height,
