@@ -569,7 +569,7 @@ async function uploadMedia (medias) {
         console.log(`Uploading file ${media._id}/${media.fileId}`)
 
         const url = `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`
-        const response = await fetch(url)
+        const response = await fetch(url, { redirect: 'follow' })
 
         if (!response.ok) {
           console.error(`Failed to fetch file ${media._id}/${media.fileId}`)
