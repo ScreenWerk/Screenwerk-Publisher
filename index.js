@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv'
 import fetch from 'node-fetch'
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
 
 dotenv.config()
 
@@ -81,6 +82,7 @@ async function getAllData (publishedAt) {
   const medias = await getMedias()
   console.log(`Medias: ${medias.length}`)
   if (medias.length === 0) return []
+
   await uploadMedia(medias)
 
   return screenGroups.map((screenGroup) => {
@@ -578,16 +580,19 @@ async function uploadMedia (medias) {
           continue
         }
 
-        const command = new PutObjectCommand({
-          Bucket: process.env.SPACES_BUCKET,
-          Key: key,
-          Body: response.body,
-          ContentDisposition: `attachment;filename="${media.fileName}"`,
-          ContentType: response.headers.get('content-type') || 'application/octet-stream',
-          ACL: 'public-read'
+        const upload = new Upload({
+          client: spacesClient,
+          params: {
+            Bucket: process.env.SPACES_BUCKET,
+            Key: key,
+            Body: response.body,
+            ContentDisposition: `attachment;filename="${media.fileName}"`,
+            ContentType: response.headers.get('content-type') || 'application/octet-stream',
+            ACL: 'public-read'
+          }
         })
 
-        await spacesClient.send(command)
+        await upload.done()
 
         console.log(`File ${media._id}/${media.fileId} uploaded`)
       }
