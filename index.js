@@ -567,8 +567,7 @@ async function uploadMedia (medias) {
       await spacesClient.send(headCommand)
 
       console.log(`File ${media._id}/${media.fileId} already exists`)
-    }
-    catch (err) {
+    } catch (err) {
       if (err.name === 'NotFound') {
         console.log(`Uploading file ${media._id}/${media.fileId}`)
 
@@ -580,13 +579,14 @@ async function uploadMedia (medias) {
           continue
         }
 
+        const sanitizedFileName = encodeURIComponent(media.fileName)
         const upload = new Upload({
           client: spacesClient,
           params: {
             Bucket: process.env.SPACES_BUCKET,
             Key: key,
             Body: response.body,
-            ContentDisposition: `attachment;filename="${media.fileName}"`,
+            ContentDisposition: `attachment;filename="${sanitizedFileName}"`,
             ContentType: response.headers.get('content-type') || 'application/octet-stream',
             ACL: 'public-read'
           }
@@ -595,8 +595,7 @@ async function uploadMedia (medias) {
         await upload.done()
 
         console.log(`File ${media._id}/${media.fileId} uploaded`)
-      }
-      else {
+      } else {
         console.error(`Error checking file ${media._id}/${media.fileId}:`, err)
       }
     }
