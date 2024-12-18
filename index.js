@@ -552,6 +552,8 @@ async function uploadMedia (medias) {
   })
 
   for (const media of medias) {
+    if (!media.fileId) continue
+
     const key = `media/${media._id}/${media.fileId}`
 
     try {
