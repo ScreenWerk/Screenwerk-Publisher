@@ -128,7 +128,7 @@ async function getAllData (publishedAt) {
             ordinal: schedule.ordinal,
             layoutEid: layout._id,
             name: layout.name,
-            validFrom: schedule.validFrom,
+            validFrom: schedule.validFrom,module_H
             validTo: schedule.validTo,
             width: layout.width,
             height: layout.height,
@@ -552,6 +552,7 @@ async function uploadMedia (medias) {
   })
 
   for (const media of medias) {
+    console.log(media)
     if (!media.fileId) continue
 
     const key = `media/${media._id}/${media.fileId}`
