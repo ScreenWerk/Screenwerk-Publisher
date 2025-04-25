@@ -3,9 +3,7 @@ import fetch from 'node-fetch'
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 
-
 dotenv.config()
-
 
 if (!process.env.ENTU_URL) throw new Error('ENTU_URL missing in environment')
 if (!process.env.ENTU_ACCOUNT) throw new Error('ENTU_ACCOUNT missing in environment')
@@ -15,108 +13,84 @@ if (!process.env.SPACES_BUCKET) throw new Error('SPACES_BUCKET missing in enviro
 if (!process.env.SPACES_KEY) throw new Error('SPACES_KEY missing in environment')
 if (!process.env.SPACES_SECRET) throw new Error('SPACES_SECRET missing in environment')
 
-
 let TOKEN
 let TOKEN_TIME
 
-
 main()
-
 
 async function main () {
   const publishedAt = new Date().toISOString()
   const screenGroups = await getAllData(publishedAt)
 
-
   for (const screenGroup of screenGroups) {
     for (const screen of screenGroup.screens) {
       console.log(`Uploading file ${screen.screenEid}.json`)
 
-
       const file = JSON.stringify(screen)
 
-
       await uploadJSON(`screen/${screen.screenEid}.json`, file)
-
 
       if (screen._mid) {
         await uploadJSON(`screen/${screen._mid}.json`, file)
       }
     }
 
-
     console.log(`Updating screenGroup ${screenGroup.screenGroupEid}\n`)
-
 
     await updateScreenGruop(screenGroup.screenGroupEid, publishedAt)
   }
 
-
   setTimeout(main, 60 * 1000)
 }
 
-
 async function getAllData (publishedAt) {
   await getToken()
-
 
   const screenGroups = await getScreenGroups()
   console.log(`ScreenGroups: ${screenGroups.length}`)
   if (screenGroups.length === 0) return []
 
-
   const screens = await getScreens()
   console.log(`Screens: ${screens.length}`)
   if (screens.length === 0) return []
-
 
   const configurations = await getConfigurations()
   console.log(`Configurations: ${configurations.length}`)
   if (configurations.length === 0) return []
 
-
   const schedules = await getSchedules()
   console.log(`Schedules: ${schedules.length}`)
   if (schedules.length === 0) return []
-
 
   const layouts = await getLayouts()
   console.log(`Layouts: ${layouts.length}`)
   if (layouts.length === 0) return []
 
-
   const layoutPlaylists = await getLayoutPlaylists()
   console.log(`LayoutPlaylists: ${layoutPlaylists.length}`)
   if (layoutPlaylists.length === 0) return []
-
 
   const playlists = await getPlaylists()
   console.log(`Playlists: ${playlists.length}`)
   if (playlists.length === 0) return []
 
-
   const playlistMedias = await getPlaylistsMedias()
   console.log(`PlaylistMedias: ${playlistMedias.length}`)
   if (playlistMedias.length === 0) return []
-
 
   const medias = await getMedias()
   console.log(`Medias: ${medias.length}`)
   if (medias.length === 0) return []
 
-
   await uploadMedia(medias)
-
 
   return screenGroups.map((screenGroup) => {
     const screensForScreenGroup = screens.filter((x) => x.screenGroup === screenGroup._id)
-
 
     if (!screensForScreenGroup.length) {
       console.log(`ERROR: Screens not found for screenGroup ${screenGroup._id}`)
       return undefined
     }
-
 
     const configuration = configurations.find((x) => x._id === screenGroup.configuration)
     if (!configuration) {
@@ -124,9 +98,7 @@ async function getAllData (publishedAt) {
       return undefined
     }
 
-
     const schedulesForConfiguration = schedules.filter((x) => x.configurations.includes(configuration._id))
-
 
     return {
       screenGroupEid: screenGroup._id,
@@ -144,13 +116,11 @@ async function getAllData (publishedAt) {
             return undefined
           }
 
-
           const layoutPlaylistsForSchedule = layoutPlaylists.filter((x) => x.layouts.includes(layout._id))
           if (!layoutPlaylistsForSchedule.length) {
             console.log(`ERROR: LayoutPlaylists not found for layout ${layout._id}`)
             return undefined
           }
-
 
           return {
             eid: schedule._id,
@@ -171,17 +141,14 @@ async function getAllData (publishedAt) {
                 return undefined
               }
 
-
               const playlistMediasForLayoutPlaylist = playlistMedias.filter((x) => x.playlists.includes(playlist._id))
               if (!playlistMediasForLayoutPlaylist.length) {
                 console.log(`ERROR: PlaylistMedias not found for playlist ${playlist._id}`)
                 return undefined
               }
 
-
               let width = layoutPlaylist.width
               let height = layoutPlaylist.height
-
 
               if (layoutPlaylist.inPixels) {
                 if (width < layoutPlaylist.left + layoutPlaylist.width) {
@@ -189,13 +156,11 @@ async function getAllData (publishedAt) {
                   width = layoutPlaylist.left + layoutPlaylist.width
                 }
 
-
                 if (height < layoutPlaylist.top + layoutPlaylist.height) {
                   console.log(`ERROR: LayoutPlaylist ${layoutPlaylist._id} top+height (${layoutPlaylist.top}+${layoutPlaylist.height}=${layoutPlaylist.top + layoutPlaylist.height}) is outside of layout ${layout._id} height (${layout.height})`)
                   height = layoutPlaylist.top + layoutPlaylist.height
                 }
               }
-
 
               return {
                 eid: layoutPlaylist._id,
@@ -217,20 +182,16 @@ async function getAllData (publishedAt) {
                     return undefined
                   }
 
-
                   let validFrom = media.validFrom || playlistMedia.validFrom
                   let validTo = media.validTo || playlistMedia.validTo
-
 
                   if (validFrom && playlistMedia.validFrom && new Date(validFrom) < new Date(playlistMedia.validFrom)) {
                     validFrom = playlistMedia.validFrom
                   }
 
-
                   if (validTo && playlistMedia.validTo && new Date(validTo) > new Date(playlistMedia.validTo)) {
                     validTo = playlistMedia.validFrom
                   }
-
 
                   return {
                     playlistMediaEid: playlistMedia._id,
@@ -257,37 +218,29 @@ async function getAllData (publishedAt) {
           }
         }).filter((x) => x?.layoutPlaylists.length > 0).sort((a, b) => a.ordinal - b.ordinal)
 
-
       })).filter((x) => x?.schedules.length > 0)
     }
   }).filter((x) => x?.screens.length > 0)
 }
 
-
 async function getToken () {
   const now = Date.now()
   const twentyFourHours = 24 * 60 * 60 * 1000
 
-
   if (TOKEN && TOKEN_TIME && (now - TOKEN_TIME < twentyFourHours)) return
 
-
   const response = await fetch(`${process.env.ENTU_URL}/auth?account=${process.env.ENTU_ACCOUNT}`, { headers: { Authorization: `Bearer ${process.env.ENTU_KEY}` } })
-
 
   if (!response.ok) {
     console.error(await response.json())
     throw new Error('Failed to fetch token')
   }
 
-
   const { token } = await response.json()
-
 
   TOKEN = token
   TOKEN_TIME = now
 }
-
 
 async function getScreenGroups () {
   const { entities } = await apiFetch('entity', {
@@ -305,13 +258,11 @@ async function getScreenGroups () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     configuration: getValue(x.configuration, 'reference')
   }))
 }
-
 
 async function getScreens () {
   const { entities } = await apiFetch('entity', {
@@ -331,14 +282,12 @@ async function getScreens () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     _mid: parseInt(getValue(x._mid)),
     screenGroup: getValue(x.screen_group, 'reference')
   }))
 }
-
 
 async function getConfigurations () {
   const { entities } = await apiFetch('entity', {
@@ -350,13 +299,11 @@ async function getConfigurations () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     updateInterval: getValue(x.update_interval, 'number')
   }))
 }
-
 
 async function getSchedules () {
   const { entities } = await apiFetch('entity', {
@@ -378,7 +325,6 @@ async function getSchedules () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     configurations: x._parent?.map((x) => x.reference) || [],
@@ -392,7 +338,6 @@ async function getSchedules () {
   })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
-
 async function getLayouts () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_layout',
@@ -404,7 +349,6 @@ async function getLayouts () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     height: getValue(x.height, 'number') || 0,
@@ -412,7 +356,6 @@ async function getLayouts () {
     width: getValue(x.width, 'number') || 0
   }))
 }
-
 
 async function getLayoutPlaylists () {
   const { entities } = await apiFetch('entity', {
@@ -434,7 +377,6 @@ async function getLayoutPlaylists () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     height: getValue(x.height, 'number') || 0,
@@ -449,7 +391,6 @@ async function getLayoutPlaylists () {
   }))
 }
 
-
 async function getPlaylists () {
   const { entities } = await apiFetch('entity', {
     '_type.string': 'sw_playlist',
@@ -463,7 +404,6 @@ async function getPlaylists () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     name: getValue(x.name),
@@ -471,7 +411,6 @@ async function getPlaylists () {
     validTo: getValue(x.valid_to, 'datetime')
   })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
-
 
 async function getPlaylistsMedias () {
   const { entities } = await apiFetch('entity', {
@@ -494,7 +433,6 @@ async function getPlaylistsMedias () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     delay: getValue(x.delay, 'number') || 0,
@@ -508,7 +446,6 @@ async function getPlaylistsMedias () {
     validTo: getValue(x.valid_to, 'datetime')
   })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
-
 
 async function getMedias () {
   const { entities } = await apiFetch('entity', {
@@ -529,7 +466,6 @@ async function getMedias () {
     limit: 9999
   })
 
-
   return entities.map((x) => ({
     _id: x._id,
     fileId: getValue(x.file, '_id'),
@@ -544,7 +480,6 @@ async function getMedias () {
   })).filter((x) => !x.validTo || new Date(x.validTo) >= new Date())
 }
 
-
 async function updateScreenGruop (screenGroup, publishedAt) {
   const { entity } = await apiFetch(`entity/${screenGroup}`, {
     props: [
@@ -553,19 +488,15 @@ async function updateScreenGruop (screenGroup, publishedAt) {
     ].join(',')
   })
 
-
   if (!entity) return
-
 
   const isPublishedId = getValue(entity.ispublished, '_id')
   const publishedId = getValue(entity.published, '_id')
-
 
   const body = [
     { _id: isPublishedId, type: 'ispublished', boolean: false },
     { _id: publishedId, type: 'published', datetime: publishedAt }
   ]
-
 
   const response = await fetch(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/entity/${screenGroup}`, {
     method: 'POST',
@@ -576,31 +507,25 @@ async function updateScreenGruop (screenGroup, publishedAt) {
     body: JSON.stringify(body)
   })
 
-
   if (!response.ok) {
     const { message } = await response.json()
     console.log(`ERROR: ${message}`)
   }
 }
 
-
 async function apiFetch (path, query) {
   const url = new URL(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/${path}`)
   if (query) url.search = new URLSearchParams(query).toString()
 
-
   const response = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } })
-
 
   if (!response.ok) {
     console.error(await response.json())
     throw new Error(`Failed to fetch ${path}`)
   }
 
-
   return response.json()
 }
-
 
 async function uploadJSON (key, file) {
   const spacesClient = new S3Client({
@@ -612,7 +537,6 @@ async function uploadJSON (key, file) {
     }
   })
 
-
   const command = new PutObjectCommand({
     Bucket: process.env.SPACES_BUCKET,
     Key: key,
@@ -621,10 +545,8 @@ async function uploadJSON (key, file) {
     ACL: 'public-read'
   })
 
-
   await spacesClient.send(command)
 }
-
 
 async function uploadMedia (medias) {
   const spacesClient = new S3Client({
@@ -636,13 +558,10 @@ async function uploadMedia (medias) {
     }
   })
 
-
   for (const media of medias) {
     if (!media.fileId) continue
 
-
     const key = `media/${media._id}/${media.fileId}`
-
 
     try {
       const headCommand = new HeadObjectCommand({
@@ -650,20 +569,16 @@ async function uploadMedia (medias) {
         Key: key
       })
 
-
       await spacesClient.send(headCommand)
-    }
-    catch (err) {
+    } catch (err) {
       if (err.name === 'NotFound') {
         const url = `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`
         const response = await fetch(url, { redirect: 'follow' })
-
 
         if (!response.ok) {
           console.error(`Failed to fetch file ${media._id}/${media.fileId}`)
           continue
         }
-
 
         const sanitizedFileName = encodeURIComponent(media.fileName)
         const upload = new Upload({
@@ -678,19 +593,15 @@ async function uploadMedia (medias) {
           }
         })
 
-
         await upload.done()
 
-
         console.log(`File ${media._id}/${media.fileId} uploaded`)
-      }
-      else {
+      } else {
         console.error(`Error checking file ${media._id}/${media.fileId}:`, err)
       }
     }
   }
 }
-
 
 function getValue (valueList = [], type = 'string', locale = 'en') {
   return valueList.find((x) => x.language === locale)?.[type] || valueList.find((x) => !x.language)?.[type] || valueList?.at(0)?.[type]
