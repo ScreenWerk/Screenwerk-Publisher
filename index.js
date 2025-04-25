@@ -21,8 +21,6 @@ async function main () {
   const publishedAt = new Date().toISOString()
   const screenGroups = await getAllData(publishedAt)
 
-  console.log('')
-
   for (const screenGroup of screenGroups) {
     for (const screen of screenGroup.screens) {
       console.log(`Uploading file ${screen.screenEid}.json`)
