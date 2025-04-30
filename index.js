@@ -229,7 +229,12 @@ async function getToken () {
 
   if (TOKEN && TOKEN_TIME && (now - TOKEN_TIME < twentyFourHours)) return
 
-  const response = await fetch(`${process.env.ENTU_URL}/auth?account=${process.env.ENTU_ACCOUNT}`, { headers: { Authorization: `Bearer ${process.env.ENTU_KEY}` } })
+  const response = await fetch(`${process.env.ENTU_URL}/auth?account=${process.env.ENTU_ACCOUNT}`, {
+    headers: {
+      Authorization: `Bearer ${process.env.ENTU_KEY}`,
+      'User-Agent': 'SWPublisher'
+    }
+  })
 
   if (!response.ok) {
     console.error(await response.json())
@@ -502,7 +507,8 @@ async function updateScreenGruop (screenGroup, publishedAt) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${TOKEN}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'User-Agent': 'SWPublisher'
     },
     body: JSON.stringify(body)
   })
@@ -517,7 +523,12 @@ async function apiFetch (path, query) {
   const url = new URL(`${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/${path}`)
   if (query) url.search = new URLSearchParams(query).toString()
 
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } })
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      'User-Agent': 'SWPublisher'
+    }
+  })
 
   if (!response.ok) {
     console.error(await response.json())
@@ -573,7 +584,12 @@ async function uploadMedia (medias) {
     } catch (err) {
       if (err.name === 'NotFound') {
         const url = `${process.env.ENTU_URL}/${process.env.ENTU_ACCOUNT}/property/${media.fileId}?download=true`
-        const response = await fetch(url, { redirect: 'follow' })
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'SWPublisher'
+          },
+          redirect: 'follow'
+        })
 
         if (!response.ok) {
           console.error(`Failed to fetch file ${media._id}/${media.fileId}`)
